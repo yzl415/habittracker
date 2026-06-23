@@ -1,32 +1,51 @@
 import { router } from '@kit.ArkUI';
+import { promptAction } from '@kit.ArkUI';
 import { HabitStore } from '../model/HabitStore';
-import { Habit, currentStreak, longestStreak, completionRate,
-  toDateStr, todayStr } from '../model/Habit';
+import { Habit, currentStreak, longestStreak, completionRate, frequencyLabel,
+  isScheduledOn, toDateStr, todayStr, addDays, isQuantifiable } from '../model/Habit';
+import { getTheme, AppTheme } from '../model/Theme';
 
 interface DetailParams {
   id?: string;
 }
 
-/** 日历格子 */
 class DayCell {
-  day: number;      // 0 表示占位空格
+  day: number;
   dateStr: string;
   checked: boolean;
+  scheduled: boolean;
 
-  constructor(day: number, dateStr: string, checked: boolean) {
+  constructor(day: number, dateStr: string, checked: boolean, scheduled: boolean) {
     this.day = day;
     this.dateStr = dateStr;
     this.checked = checked;
+    this.scheduled = scheduled;
+  }
+}
+
+class HeatCell {
+  dateStr: string;
+  level: number;
+
+  constructor(dateStr: string, level: number) {
+    this.dateStr = dateStr;
+    this.level = level;
   }
 }
 
 @Entry
 @Component
 struct HabitDetail {
+  @StorageProp('themeDark') themeDark: boolean = false;
   @State habit: Habit | null = null;
   @State year: number = new Date().getFullYear();
-  @State month: number = new Date().getMonth(); // 0-11
+  @State month: number = new Date().getMonth();
+  @State refreshKey: number = 0;
   private store: HabitStore = HabitStore.getInstance();
+
+  th(): AppTheme {
+    return getTheme(this.themeDark);
+  }
 
   aboutToAppear(): void {
     const params = router.getParams() as DetailParams;
@@ -36,21 +55,57 @@ struct HabitDetail {
     }
   }
 
-  // 生成当月日历格子（前面补空格对齐星期）
+  async onTapDay(cell: DayCell): Promise<void> {
+    if (this.habit === null || cell.day === 0) {
+      return;
+    }
+    if (cell.dateStr > todayStr()) {
+      promptAction.showToast({ message: '不能给未来打卡哦' });
+      return;
+    }
+    await this.store.setChecked(this.habit.id, cell.dateStr, !cell.checked);
+    this.refreshKey++;
+  }
+
   buildCells(): DayCell[] {
     const cells: DayCell[] = [];
     if (this.habit === null) {
       return cells;
     }
-    const checkedSet: Set<string> = new Set(this.habit.checkedDates);
-    const firstDay: number = new Date(this.year, this.month, 1).getDay(); // 0=周日
+    const h: Habit = this.habit;
+    const checkedSet: Set<string> = new Set(h.checkedDates);
+    const firstDay: number = new Date(this.year, this.month, 1).getDay();
     const daysInMonth: number = new Date(this.year, this.month + 1, 0).getDate();
     for (let i = 0; i < firstDay; i++) {
-      cells.push(new DayCell(0, '', false));
+      cells.push(new DayCell(0, '', false, false));
     }
     for (let d = 1; d <= daysInMonth; d++) {
       const ds: string = toDateStr(new Date(this.year, this.month, d));
-      cells.push(new DayCell(d, ds, checkedSet.has(ds)));
+      cells.push(new DayCell(d, ds, checkedSet.has(ds), isScheduledOn(h, ds)));
+    }
+    return cells;
+  }
+
+  buildHeat(): HeatCell[] {
+    const cells: HeatCell[] = [];
+    if (this.habit === null) {
+      return cells;
+    }
+    const checkedSet: Set<string> = new Set(this.habit.checkedDates);
+    const today: string = todayStr();
+    const weeks: number = 17;
+    const todayWeekday: number = new Date().getDay();
+    const lastSunday: string = addDays(today, -todayWeekday);
+    const start: string = addDays(lastSunday, -(weeks - 1) * 7);
+    for (let w = 0; w < weeks; w++) {
+      for (let d = 0; d < 7; d++) {
+        const ds: string = addDays(start, w * 7 + d);
+        if (ds > today) {
+          cells.push(new HeatCell(ds, -1));
+        } else {
+          cells.push(new HeatCell(ds, checkedSet.has(ds) ? 1 : 0));
+        }
+      }
     }
     return cells;
   }
@@ -73,19 +128,23 @@ struct HabitDetail {
     }
   }
 
+  cardBorderWidth(): number {
+    return this.themeDark ? 1 : 0;
+  }
+
   build() {
     Column() {
       this.NavBar()
-
       if (this.habit !== null) {
         Scroll() {
           Column() {
             this.HeroCard()
             this.StatsRow()
+            this.Heatmap()
             this.Calendar()
           }
           .width('100%')
-          .padding({ left: 20, right: 20, bottom: 24 })
+          .padding({ left: 20, right: 20, bottom: 28 })
         }
         .layoutWeight(1)
         .scrollBar(BarState.Off)
@@ -93,7 +152,7 @@ struct HabitDetail {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F4F6FA')
+    .backgroundColor(this.th().bg)
   }
 
   @Builder
@@ -101,12 +160,12 @@ struct HabitDetail {
     Row() {
       Text('‹ 返回')
         .fontSize(16)
-        .fontColor('#0A59F7')
+        .fontColor(this.th().accent)
         .onClick(() => router.back())
         .layoutWeight(1)
       Text('编辑')
         .fontSize(16)
-        .fontColor('#0A59F7')
+        .fontColor(this.th().accent)
         .onClick(() => {
           if (this.habit !== null) {
             router.pushUrl({ url: 'pages/EditHabit', params: { id: this.habit.id } });
@@ -121,23 +180,36 @@ struct HabitDetail {
   HeroCard() {
     Column() {
       Stack() {
-        Circle().width(70).height(70).fill((this.habit as Habit).color + '22')
+        Circle().width(72).height(72).fill((this.habit as Habit).color + (this.themeDark ? '2E' : '1F'))
         Text((this.habit as Habit).emoji).fontSize(34)
       }
       Text((this.habit as Habit).name)
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#1A1A1A')
+        .fontColor(this.th().textPrimary)
         .margin({ top: 12 })
-      Text('🔥 当前连续 ' + currentStreak((this.habit as Habit).checkedDates) + ' 天')
-        .fontSize(15)
-        .fontColor((this.habit as Habit).color)
-        .margin({ top: 6 })
+      Row() {
+        Text('🔥 当前连续 ' + currentStreak(this.habit as Habit) + ' 天')
+          .fontSize(14)
+          .fontColor((this.habit as Habit).color)
+        Text('  ·  ' + frequencyLabel(this.habit as Habit))
+          .fontSize(14)
+          .fontColor(this.th().textTertiary)
+      }
+      .margin({ top: 6 })
+      if (isQuantifiable(this.habit as Habit)) {
+        Text('🎯 每日目标 ' + (this.habit as Habit).targetCount
+          + ((this.habit as Habit).unit.length > 0 ? ' ' + (this.habit as Habit).unit : ''))
+          .fontSize(13)
+          .fontColor(this.th().textTertiary)
+          .margin({ top: 6 })
+      }
     }
     .width('100%')
     .padding({ top: 24, bottom: 24 })
-    .backgroundColor('#FFFFFF')
-    .borderRadius(20)
+    .backgroundColor(this.th().surface)
+    .borderRadius(22)
+    .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
     .margin({ top: 8 })
   }
 
@@ -145,12 +217,12 @@ struct HabitDetail {
   StatItem(label: string, value: string) {
     Column() {
       Text(value)
-        .fontSize(22)
+        .fontSize(21)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#1A1A1A')
+        .fontColor(this.th().textPrimary)
       Text(label)
         .fontSize(12)
-        .fontColor('#9AA0AC')
+        .fontColor(this.th().textTertiary)
         .margin({ top: 4 })
     }
     .layoutWeight(1)
@@ -159,17 +231,62 @@ struct HabitDetail {
   @Builder
   StatsRow() {
     Row() {
-      this.StatItem('最长连续', longestStreak((this.habit as Habit).checkedDates) + ' 天')
-      Divider().vertical(true).height(32).color('#EEEFF2')
+      this.StatItem('最长连续', longestStreak(this.habit as Habit) + ' 天')
+      Divider().vertical(true).height(32).color(this.th().divider)
       this.StatItem('累计打卡', (this.habit as Habit).checkedDates.length + ' 次')
-      Divider().vertical(true).height(32).color('#EEEFF2')
-      this.StatItem('30天完成', completionRate((this.habit as Habit).checkedDates, 30) + '%')
+      Divider().vertical(true).height(32).color(this.th().divider)
+      this.StatItem('30天完成', completionRate(this.habit as Habit, 30) + '%')
     }
     .width('100%')
     .padding({ top: 18, bottom: 18 })
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(this.th().surface)
     .borderRadius(20)
-    .margin({ top: 14 })
+    .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
+    .margin({ top: 12 })
+  }
+
+  heatColor(level: number): string {
+    if (level === 1) {
+      return (this.habit as Habit).color;
+    }
+    if (level === 0) {
+      return this.th().track;
+    }
+    return '#00000000';
+  }
+
+  @Builder
+  Heatmap() {
+    Column() {
+      Text('打卡热力图')
+        .fontSize(15)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.th().textPrimary)
+        .width('100%')
+        .margin({ bottom: 12 })
+      Grid() {
+        ForEach(this.buildHeat(), (c: HeatCell, idx: number) => {
+          GridItem() {
+            Column()
+              .width(13)
+              .height(13)
+              .borderRadius(3)
+              .backgroundColor(this.heatColor(c.level))
+          }
+        }, (c: HeatCell, idx: number) => idx + '_' + c.dateStr + '_' + this.refreshKey)
+      }
+      .rowsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
+      .rowsGap(4)
+      .columnsGap(4)
+      .height(7 * 13 + 6 * 4)
+      .width('100%')
+    }
+    .width('100%')
+    .padding(18)
+    .backgroundColor(this.th().surface)
+    .borderRadius(20)
+    .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
+    .margin({ top: 12 })
   }
 
   @Builder
@@ -178,19 +295,19 @@ struct HabitDetail {
       Row() {
         Text('‹')
           .fontSize(22)
-          .fontColor('#5A6072')
+          .fontColor(this.th().textSecondary)
           .width(36)
           .textAlign(TextAlign.Center)
           .onClick(() => this.prevMonth())
         Text(this.year + ' 年 ' + (this.month + 1) + ' 月')
           .fontSize(16)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#1A1A1A')
+          .fontColor(this.th().textPrimary)
           .layoutWeight(1)
           .textAlign(TextAlign.Center)
         Text('›')
           .fontSize(22)
-          .fontColor('#5A6072')
+          .fontColor(this.th().textSecondary)
           .width(36)
           .textAlign(TextAlign.Center)
           .onClick(() => this.nextMonth())
@@ -202,7 +319,7 @@ struct HabitDetail {
         ForEach(['日', '一', '二', '三', '四', '五', '六'], (w: string) => {
           Text(w)
             .fontSize(12)
-            .fontColor('#9AA0AC')
+            .fontColor(this.th().textTertiary)
             .layoutWeight(1)
             .textAlign(TextAlign.Center)
         }, (w: string) => w)
@@ -218,25 +335,37 @@ struct HabitDetail {
                 Circle()
                   .width(34)
                   .height(34)
-                  .fill(cell.checked ? (this.habit as Habit).color : 'transparent')
+                  .fill(cell.checked ? (this.habit as Habit).color : '#00000000')
+                  .stroke(!cell.checked && cell.scheduled && cell.dateStr <= todayStr()
+                    ? this.th().divider : '#00000000')
+                  .strokeWidth(1.5)
                 Text(cell.day.toString())
                   .fontSize(14)
                   .fontColor(cell.checked ? '#FFFFFF'
-                    : (cell.dateStr === todayStr() ? (this.habit as Habit).color : '#3A3F4B'))
+                    : (cell.dateStr === todayStr() ? (this.habit as Habit).color : this.th().textSecondary))
                   .fontWeight(cell.dateStr === todayStr() ? FontWeight.Bold : FontWeight.Normal)
               }
+              .onClick(() => this.onTapDay(cell))
             }
           }
           .height(42)
-        }, (cell: DayCell, idx: number) => idx + '_' + cell.dateStr)
+        }, (cell: DayCell, idx: number) => idx + '_' + cell.dateStr + '_' + this.refreshKey)
       }
       .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
       .width('100%')
+
+      Text('点击日期可补卡或取消')
+        .fontSize(12)
+        .fontColor(this.th().textTertiary)
+        .width('100%')
+        .textAlign(TextAlign.Center)
+        .margin({ top: 12 })
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(this.th().surface)
     .borderRadius(20)
-    .margin({ top: 14 })
+    .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
+    .margin({ top: 12 })
   }
 }

@@ -1,218 +1,235 @@
-import { router } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
+import { router } from '@kit.ArkUI';
 import { HabitStore } from '../model/HabitStore';
-import { Habit, currentStreak, todayStr } from '../model/Habit';
+import { getTheme, AppTheme } from '../model/Theme';
+import { TodayView } from '../components/TodayView';
+import { StatsView } from '../components/StatsView';
+import { MineView } from '../components/MineView';
+import { AppIcon } from '../components/AppIcon';
 
 @Entry
 @Component
 struct Index {
-  @State habits: Habit[] = [];
+  @State currentIndex: number = 0;
+  @State tick: number = 0;
   @State loaded: boolean = false;
+  @State showPrivacy: boolean = false;
+  @State showWelcome: boolean = false;
+  @StorageProp('themeDark') themeDark: boolean = false;
   private store: HabitStore = HabitStore.getInstance();
+
+  th(): AppTheme {
+    return getTheme(this.themeDark);
+  }
 
   async aboutToAppear(): Promise<void> {
     const ctx = getContext(this) as common.UIAbilityContext;
     await this.store.init(ctx);
-    this.refresh();
+    AppStorage.setOrCreate('themeDark', this.store.themeDark);
+    this.showPrivacy = !this.store.privacyAgreed;
+    this.showWelcome = this.store.privacyAgreed && !this.store.onboarded;
     this.loaded = true;
+    this.tick++;
+  }
+
+  async agreePrivacy(): Promise<void> {
+    await this.store.setPrivacyAgreed();
+    this.showPrivacy = false;
+    this.showWelcome = !this.store.onboarded;
+  }
+
+  async finishWelcome(): Promise<void> {
+    await this.store.setOnboarded();
+    this.showWelcome = false;
+  }
+
+  exitApp(): void {
+    const ctx = getContext(this) as common.UIAbilityContext;
+    ctx.terminateSelf();
   }
 
   onPageShow(): void {
-    // 从编辑/详情页返回时刷新
     if (this.loaded) {
-      this.refresh();
+      this.tick++;
     }
   }
 
-  refresh(): void {
-    // 重新赋新数组引用，触发 UI 刷新
-    this.habits = this.store.habits.slice();
-  }
-
-  isCheckedToday(h: Habit): boolean {
-    return h.checkedDates.indexOf(todayStr()) >= 0;
-  }
-
-  doneCount(): number {
-    const today: string = todayStr();
-    let n: number = 0;
-    this.habits.forEach((h: Habit) => {
-      if (h.checkedDates.indexOf(today) >= 0) {
-        n++;
-      }
-    });
-    return n;
-  }
-
-  async toggle(h: Habit): Promise<void> {
-    await this.store.toggleToday(h.id);
-    this.refresh();
-  }
-
   @Builder
-  Header() {
+  TabItem(index: number, icon: string, label: string) {
     Column() {
-      Text(this.todayLabel())
-        .fontSize(14)
-        .fontColor('#9AA0AC')
-      Row() {
-        Text('今日习惯')
-          .fontSize(26)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1A1A1A')
-          .layoutWeight(1)
-        if (this.habits.length > 0) {
-          Text(this.doneCount() + ' / ' + this.habits.length)
-            .fontSize(15)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#0A59F7')
-            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-            .backgroundColor('#EAF1FE')
-            .borderRadius(12)
-        }
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
-      .margin({ top: 4 })
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-    .padding({ left: 20, right: 20, top: 16, bottom: 12 })
-  }
-
-  todayLabel(): string {
-    const d: Date = new Date();
-    const week: string[] = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    return `${d.getMonth() + 1}月${d.getDate()}日 ${week[d.getDay()]}`;
-  }
-
-  @Builder
-  EmptyState() {
-    Column() {
-      Text('🌱')
-        .fontSize(64)
-      Text('还没有习惯')
-        .fontSize(18)
-        .fontWeight(FontWeight.Medium)
-        .fontColor('#1A1A1A')
-        .margin({ top: 16 })
-      Text('点击右下角 ＋ 添加你的第一个习惯')
-        .fontSize(14)
-        .fontColor('#9AA0AC')
-        .margin({ top: 8 })
-    }
-    .width('100%')
-    .layoutWeight(1)
-    .justifyContent(FlexAlign.Center)
-  }
-
-  @Builder
-  HabitList() {
-    List({ space: 12 }) {
-      ForEach(this.habits, (h: Habit) => {
-        ListItem() {
-          this.HabitCard(h)
-        }
-      }, (h: Habit) => h.id + '_' + h.checkedDates.length)
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .padding({ left: 20, right: 20, top: 4, bottom: 90 })
-    .scrollBar(BarState.Off)
-  }
-
-  @Builder
-  HabitCard(h: Habit) {
-    Row() {
-      // 左侧：图标 + 名称（点击进详情）
-      Row() {
-        Stack() {
-          Circle()
-            .width(46)
-            .height(46)
-            .fill(h.color + '22')
-          Text(h.emoji)
-            .fontSize(22)
-        }
-        .margin({ right: 14 })
-
-        Column() {
-          Text(h.name)
-            .fontSize(17)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#1A1A1A')
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text('🔥 已坚持 ' + currentStreak(h.checkedDates) + ' 天')
-            .fontSize(13)
-            .fontColor('#9AA0AC')
-            .margin({ top: 4 })
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-      }
-      .layoutWeight(1)
-      .onClick(() => {
-        router.pushUrl({ url: 'pages/HabitDetail', params: { id: h.id } });
+      AppIcon({
+        name: icon,
+        color: this.currentIndex === index ? this.th().accent : this.th().textTertiary,
+        iconSize: 25,
+        stroke: this.currentIndex === index ? 2.2 : 1.9
       })
-
-      // 右侧：打卡按钮
-      Stack() {
-        Circle()
-          .width(34)
-          .height(34)
-          .fill(this.isCheckedToday(h) ? h.color : 'transparent')
-          .stroke(this.isCheckedToday(h) ? h.color : '#D5D8DF')
-          .strokeWidth(2)
-        if (this.isCheckedToday(h)) {
-          Text('✓')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
-        }
-      }
-      .margin({ left: 12 })
-      .onClick(() => this.toggle(h))
+      Text(label)
+        .fontSize(10)
+        .fontColor(this.currentIndex === index ? this.th().accent : this.th().textTertiary)
+        .fontWeight(this.currentIndex === index ? FontWeight.Medium : FontWeight.Normal)
+        .margin({ top: 4 })
     }
     .width('100%')
-    .padding(16)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(18)
-    .shadow({ radius: 8, color: '#0D000000', offsetX: 0, offsetY: 2 })
+    .padding({ top: 9, bottom: 4 })
   }
 
   build() {
-    Stack({ alignContent: Alignment.BottomEnd }) {
-      Column() {
-        this.Header()
-        if (this.habits.length === 0) {
-          this.EmptyState()
-        } else {
-          this.HabitList()
+    Stack() {
+      Tabs({ barPosition: BarPosition.End, index: this.currentIndex }) {
+        TabContent() {
+          TodayView({ tick: this.tick })
         }
+        .tabBar(this.TabItem(0, 'today', '今日'))
+
+        TabContent() {
+          StatsView({ tick: this.tick })
+        }
+        .tabBar(this.TabItem(1, 'stats', '统计'))
+
+        TabContent() {
+          MineView({ tick: this.tick })
+        }
+        .tabBar(this.TabItem(2, 'mine', '我的'))
       }
+      .barHeight(66)
+      .scrollable(false)
+      .barBackgroundColor(this.th().navBar)
+      .divider({ strokeWidth: 0.5, color: this.th().divider })
+      .onChange((index: number) => {
+        this.currentIndex = index;
+        this.tick++;
+      })
+      .backgroundColor(this.th().bg)
       .width('100%')
       .height('100%')
 
-      // 悬浮添加按钮
-      Button() {
-        Text('＋')
-          .fontSize(30)
-          .fontColor('#FFFFFF')
-          .fontWeight(FontWeight.Medium)
+      if (this.showPrivacy) {
+        this.PrivacyGate()
       }
-      .width(56)
-      .height(56)
-      .borderRadius(28)
-      .backgroundColor('#0A59F7')
-      .shadow({ radius: 16, color: '#400A59F7', offsetX: 0, offsetY: 6 })
-      .margin({ right: 20, bottom: 28 })
-      .onClick(() => {
-        router.pushUrl({ url: 'pages/EditHabit' });
-      })
+      if (this.showWelcome && !this.showPrivacy) {
+        this.WelcomeScreen()
+      }
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F4F6FA')
+  }
+
+  @Builder
+  WelcomeScreen() {
+    Column() {
+      Blank().layoutWeight(1)
+      // App 图标（渐变圆角方 + 对勾）
+      Stack({ alignContent: Alignment.Center }) {
+        Column()
+          .width(96)
+          .height(96)
+          .borderRadius(24)
+          .linearGradient({ angle: 135, colors: [['#5B53E8', 0], ['#7C76F0', 1]] })
+        Text('✓')
+          .fontSize(52)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#FFFFFF')
+      }
+      Text('小习惯')
+        .fontSize(28)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.th().textPrimary)
+        .margin({ top: 24 })
+      Text('每天一点点，坚持看得见')
+        .fontSize(15)
+        .fontColor(this.th().textSecondary)
+        .margin({ top: 10 })
+
+      Column({ space: 16 }) {
+        this.Feature('记录每天想坚持的小事')
+        this.Feature('打卡进度、连续天数一目了然')
+        this.Feature('数据只存本地，安全又私密')
+      }
+      .alignItems(HorizontalAlign.Start)
+      .margin({ top: 44 })
+
+      Blank().layoutWeight(1)
+      Button('开始使用')
+        .width('100%')
+        .height(52)
+        .fontSize(17)
+        .fontWeight(FontWeight.Medium)
+        .fontColor('#FFFFFF')
+        .backgroundColor(this.th().accent)
+        .borderRadius(16)
+        .onClick(() => this.finishWelcome())
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 36, right: 36, top: 60, bottom: 48 })
+    .backgroundColor(this.th().bg)
+  }
+
+  @Builder
+  Feature(text: string) {
+    Row() {
+      Stack({ alignContent: Alignment.Center }) {
+        Circle().width(24).height(24).fill(this.th().accentSoft)
+        Text('✓')
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.th().accent)
+      }
+      .margin({ right: 14 })
+      Text(text)
+        .fontSize(15)
+        .fontColor(this.th().textPrimary)
+        .layoutWeight(1)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  PrivacyGate() {
+    Column() {
+      Column() {
+        Text('欢迎使用小习惯')
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.th().textPrimary)
+          .margin({ top: 4, bottom: 14 })
+        Text() {
+          Span('在使用前，请阅读并同意')
+          Span('《隐私政策》')
+            .fontColor(this.th().accent)
+            .onClick(() => router.pushUrl({ url: 'pages/Privacy' }))
+          Span('。我们高度重视你的隐私：所有习惯数据仅保存在你的设备本地，不收集、不上传、无广告、无第三方共享。')
+        }
+        .fontSize(14)
+        .lineHeight(23)
+        .textAlign(TextAlign.Start)
+        .width('100%')
+
+        Button('同意并开始使用')
+          .width('100%')
+          .height(48)
+          .fontSize(16)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#FFFFFF')
+          .backgroundColor(this.th().accent)
+          .borderRadius(14)
+          .margin({ top: 22 })
+          .onClick(() => this.agreePrivacy())
+        Text('不同意并退出')
+          .fontSize(14)
+          .fontColor(this.th().textTertiary)
+          .margin({ top: 14, bottom: 4 })
+          .onClick(() => this.exitApp())
+      }
+      .width('86%')
+      .padding(24)
+      .backgroundColor(this.th().surface)
+      .borderRadius(22)
+      .alignItems(HorizontalAlign.Center)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#99000000')
+    .justifyContent(FlexAlign.Center)
   }
 }

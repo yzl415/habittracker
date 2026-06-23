@@ -2,6 +2,9 @@
   "src": [
     "pages/Index",
     "pages/EditHabit",
-    "pages/HabitDetail"
+    "pages/HabitDetail",
+    "pages/Achievements",
+    "pages/ReorderHabits",
+    "pages/Privacy"
   ]
 }

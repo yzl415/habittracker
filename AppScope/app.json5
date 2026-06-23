@@ -1,7 +1,7 @@
 {
   "app": {
-    "bundleName": "com.example.habittracker",
-    "vendor": "example",
+    "bundleName": "com.joey.habittracker",
+    "vendor": "joey",
     "versionCode": 1000000,
     "versionName": "1.0.0",
     "buildVersion": "1",

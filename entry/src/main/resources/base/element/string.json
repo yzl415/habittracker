@@ -10,7 +10,19 @@
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "小习惯"
+    },
+    {
+      "name": "widget_display_name",
+      "value": "今日习惯"
+    },
+    {
+      "name": "widget_desc",
+      "value": "查看今日习惯打卡进度"
+    },
+    {
+      "name": "EntryFormAbility_desc",
+      "value": "habit widget"
     }
   ]
 }
