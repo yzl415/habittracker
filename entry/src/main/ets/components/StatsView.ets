@@ -1,5 +1,5 @@
 import { HabitStore } from '../model/HabitStore';
-import { Habit, currentStreak, longestStreak, completionRate,
+import { Habit, currentStreak, longestStreak,
   isScheduledOn, addDays, todayStr, WEEK_SHORT, weekdayOf } from '../model/Habit';
 import { getTheme, AppTheme } from '../model/Theme';
 import { EmptyArt } from './EmptyArt';
@@ -102,6 +102,18 @@ export struct StatsView {
     return this.habits.slice().sort((a: Habit, b: Habit) => currentStreak(b) - currentStreak(a));
   }
 
+  /** 排行中最高的连续天数，用作进度条满格基准 */
+  maxStreak(): number {
+    let max: number = 0;
+    this.habits.forEach((h: Habit) => {
+      const s: number = currentStreak(h);
+      if (s > max) {
+        max = s;
+      }
+    });
+    return max;
+  }
+
   cardBorderWidth(): number {
     return this.themeDark ? 1 : 0;
   }
@@ -200,14 +212,17 @@ export struct StatsView {
           Column() {
             Text(s.total > 0 ? Math.round(s.ratio * 100) + '' : '')
               .fontSize(10)
-              .fontColor(this.th().textTertiary)
+              .fontColor(idx === 6 ? this.th().accent : this.th().textTertiary)
+              .fontWeight(idx === 6 ? FontWeight.Bold : FontWeight.Normal)
               .margin({ bottom: 4 })
             Column() {
               Column()
                 .width('58%')
                 .height((6 + s.ratio * 94) + '%')
-                .backgroundColor(s.ratio > 0 ? this.th().accent : this.th().track)
-                .borderRadius(6)
+                .backgroundColor(s.ratio > 0
+                  ? (idx === 6 ? this.th().accent : this.th().accent + (this.themeDark ? '66' : '4D'))
+                  : this.th().track)
+                .borderRadius(7)
             }
             .height(112)
             .width('100%')
@@ -215,11 +230,12 @@ export struct StatsView {
             .alignItems(HorizontalAlign.Center)
             Text(s.label)
               .fontSize(12)
-              .fontColor(this.th().textTertiary)
+              .fontColor(idx === 6 ? this.th().accent : this.th().textTertiary)
+              .fontWeight(idx === 6 ? FontWeight.Medium : FontWeight.Normal)
               .margin({ top: 8 })
           }
           .layoutWeight(1)
-        }, (s: DayStat, idx: number) => idx + '_' + s.label)
+        }, (s: DayStat, idx: number) => idx + '_' + s.label + '_' + Math.round(s.ratio * 100))
       }
       .width('100%')
       .alignItems(VerticalAlign.Bottom)
@@ -244,36 +260,42 @@ export struct StatsView {
         .margin({ bottom: 4 })
       ForEach(this.ranking(), (h: Habit, idx: number) => {
         Row() {
-          Text((idx + 1).toString())
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(idx < 3 ? '#FF7B54' : this.th().textTertiary)
-            .width(22)
           Stack() {
             Circle().width(36).height(36).fill(h.color + (this.themeDark ? '2E' : '1F'))
             Text(h.emoji).fontSize(18)
           }
           .margin({ right: 12 })
           Column() {
-            Text(h.name)
-              .fontSize(15)
-              .fontColor(this.th().textPrimary)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text('30天完成 ' + completionRate(h, 30) + '%')
-              .fontSize(12)
-              .fontColor(this.th().textTertiary)
-              .margin({ top: 2 })
+            Row() {
+              Text(h.name)
+                .fontSize(15)
+                .fontColor(this.th().textPrimary)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .layoutWeight(1)
+              Text('🔥 ' + currentStreak(h))
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(h.color)
+                .margin({ left: 8 })
+            }
+            .width('100%')
+            Stack({ alignContent: Alignment.Start }) {
+              Column().width('100%').height(6).borderRadius(3).backgroundColor(this.th().track)
+              Column()
+                .width((this.maxStreak() > 0 ? currentStreak(h) / this.maxStreak() * 100 : 0) + '%')
+                .height(6)
+                .borderRadius(3)
+                .backgroundColor(h.color)
+            }
+            .width('100%')
+            .margin({ top: 8 })
           }
           .alignItems(HorizontalAlign.Start)
           .layoutWeight(1)
-          Text('🔥 ' + currentStreak(h))
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(h.color)
         }
         .width('100%')
-        .padding({ top: 10, bottom: 10 })
+        .padding({ top: 11, bottom: 11 })
       }, (h: Habit) => h.id + '_' + h.checkedDates.length)
     }
     .width('100%')

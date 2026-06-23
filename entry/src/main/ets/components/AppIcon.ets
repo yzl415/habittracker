@@ -218,24 +218,24 @@ export struct AppIcon {
     .height(this.iconSize)
   }
 
-  // 对勾：两段旋转的短条组成 ✓
+  // 对勾：两段旋转的短条组成 ✓（交点在底部偏左，短臂朝左上、长臂朝右上）
   @Builder
   IconCheck() {
     Stack({ alignContent: Alignment.Center }) {
       Column()
         .width(this.u(0.16))
-        .height(this.u(0.4))
+        .height(this.u(0.34))
         .backgroundColor(this.color)
         .borderRadius(this.u(0.08))
-        .rotate({ angle: 42 })
-        .offset({ x: -this.u(0.2), y: this.u(0.12) })
+        .rotate({ angle: -45 })
+        .offset({ x: -this.u(0.19), y: this.u(0.10) })
       Column()
         .width(this.u(0.16))
-        .height(this.u(0.66))
+        .height(this.u(0.58))
         .backgroundColor(this.color)
         .borderRadius(this.u(0.08))
-        .rotate({ angle: -42 })
-        .offset({ x: this.u(0.08), y: -this.u(0.02) })
+        .rotate({ angle: 40 })
+        .offset({ x: this.u(0.10), y: -this.u(0.02) })
     }
     .width(this.iconSize)
     .height(this.iconSize)

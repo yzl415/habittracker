@@ -130,7 +130,7 @@ struct Index {
           .fontWeight(FontWeight.Bold)
           .fontColor('#FFFFFF')
       }
-      Text('小习惯')
+      Text('萌芽打卡')
         .fontSize(28)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.th().textPrimary)
@@ -188,7 +188,7 @@ struct Index {
   PrivacyGate() {
     Column() {
       Column() {
-        Text('欢迎使用小习惯')
+        Text('欢迎使用萌芽打卡')
           .fontSize(20)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.th().textPrimary)

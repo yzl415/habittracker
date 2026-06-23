@@ -139,33 +139,29 @@ export struct MineView {
   @Builder
   SummaryCard() {
     Row() {
-      this.SummaryItem(this.activeNum.toString(), '活跃习惯')
-      Divider().vertical(true).height(34).color('#FFFFFF38')
-      this.SummaryItem(this.totalCheckins.toString(), '累计打卡')
-      Divider().vertical(true).height(34).color('#FFFFFF38')
-      this.SummaryItem(this.badges + '/' + ACHIEVEMENTS.length, '成就')
+      this.SummaryItem(this.activeNum.toString(), '活跃习惯', this.th().accent)
+      Divider().vertical(true).height(34).color(this.th().divider)
+      this.SummaryItem(this.totalCheckins.toString(), '累计打卡', this.th().textPrimary)
+      Divider().vertical(true).height(34).color(this.th().divider)
+      this.SummaryItem(this.badges + '/' + ACHIEVEMENTS.length, '成就', this.th().accent)
     }
     .width('100%')
-    .padding({ top: 24, bottom: 24 })
-    .linearGradient({
-      angle: 135,
-      colors: this.themeDark
-        ? [['#3A3D8F', 0], ['#5B4BC4', 1]]
-        : [['#4F46E5', 0], ['#7C76F0', 1]]
-    })
+    .padding({ top: 22, bottom: 22 })
+    .backgroundColor(this.th().surface)
     .borderRadius(22)
+    .border({ width: this.themeDark ? 1 : 0, color: this.th().cardBorder })
+    .shadow({ radius: this.th().shadowRadius, color: this.th().shadowColor, offsetX: 0, offsetY: 3 })
     .margin({ top: 4 })
-    .shadow({ radius: this.themeDark ? 0 : 20, color: this.th().accent + '33', offsetX: 0, offsetY: 8 })
   }
 
   @Builder
-  SummaryItem(value: string, label: string) {
+  SummaryItem(value: string, label: string, valueColor: string) {
     Column() {
       Text(value)
         .fontSize(25)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-      Text(label).fontSize(12).fontColor('#FFFFFFCC').margin({ top: 5 })
+        .fontColor(valueColor)
+      Text(label).fontSize(12).fontColor(this.th().textSecondary).margin({ top: 5 })
     }
     .layoutWeight(1)
   }

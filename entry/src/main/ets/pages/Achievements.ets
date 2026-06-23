@@ -69,24 +69,37 @@ struct Achievements {
 
   @Builder
   HeroBanner() {
-    Column() {
-      Text('🏆').fontSize(44)
-      Text(this.unlockedNum() + ' / ' + this.list.length)
-        .fontSize(28)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .margin({ top: 8 })
-      Text('已解锁成就')
-        .fontSize(13)
-        .fontColor('#FFFFFFCC')
-        .margin({ top: 4 })
+    Row() {
+      Stack() {
+        Progress({ value: this.unlockedNum(), total: this.list.length, type: ProgressType.Ring })
+          .width(64)
+          .height(64)
+          .color(this.th().warn)
+          .style({ strokeWidth: 6 })
+          .backgroundColor(this.th().track)
+        Text('🏆').fontSize(26)
+      }
+      .margin({ right: 18 })
+      Column() {
+        Text(this.unlockedNum() + ' / ' + this.list.length)
+          .fontSize(26)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.th().textPrimary)
+        Text('已解锁成就')
+          .fontSize(13)
+          .fontColor(this.th().textSecondary)
+          .margin({ top: 4 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
     }
     .width('100%')
-    .padding({ top: 26, bottom: 26 })
-    .linearGradient({ angle: 135, colors: [['#F59E0B', 0], ['#FF7B54', 1]] })
+    .padding(22)
+    .backgroundColor(this.th().surface)
     .borderRadius(22)
+    .border({ width: this.themeDark ? 1 : 0, color: this.th().cardBorder })
+    .shadow({ radius: this.th().shadowRadius, color: this.th().shadowColor, offsetX: 0, offsetY: 3 })
     .margin({ top: 8 })
-    .shadow({ radius: this.themeDark ? 0 : 20, color: '#F59E0B33', offsetX: 0, offsetY: 8 })
   }
 
   @Builder

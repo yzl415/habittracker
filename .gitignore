@@ -10,3 +10,13 @@
 /.clang-tidy
 **/.test
 /.appanalyzer
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# 签名私钥与证书（机密，勿入库）
+/signature/
+
+# 上架资料（本地保存）
+/release/

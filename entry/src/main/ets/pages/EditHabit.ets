@@ -25,6 +25,9 @@ struct EditHabit {
   @State unit: string = '';
   @State timeOfDay: TimeOfDay = 'anytime';
   @State editingId: string = '';
+  @State isCountMode: boolean = false;        // 打卡(false) / 计数(true)
+  @State freqMode: string = 'daily';          // daily / workday / weekend / custom
+  @State nameFocused: boolean = false;
   private store: HabitStore = HabitStore.getInstance();
 
   th(): AppTheme {
@@ -47,7 +50,40 @@ struct EditHabit {
         this.targetCount = h.targetCount;
         this.unit = h.unit;
         this.timeOfDay = h.timeOfDay;
+        this.isCountMode = h.targetCount > 1;
+        this.freqMode = this.deriveFreqMode(h.frequency, h.weekdays);
       }
+    }
+  }
+
+  /** 由已有 frequency + weekdays 推断 UI 频率模式 */
+  deriveFreqMode(freq: FrequencyType, days: number[]): string {
+    if (freq === 'daily') {
+      return 'daily';
+    }
+    const sorted: string = days.slice().sort((a: number, b: number) => a - b).join();
+    if (sorted === '1,2,3,4,5') {
+      return 'workday';
+    }
+    if (sorted === '0,6') {
+      return 'weekend';
+    }
+    return 'custom';
+  }
+
+  /** 选择频率快捷模式：同步 frequency 与 weekdays */
+  selectFreqMode(mode: string): void {
+    this.freqMode = mode;
+    if (mode === 'daily') {
+      this.frequency = 'daily';
+    } else if (mode === 'workday') {
+      this.frequency = 'weekly';
+      this.weekdays = [1, 2, 3, 4, 5];
+    } else if (mode === 'weekend') {
+      this.frequency = 'weekly';
+      this.weekdays = [0, 6];
+    } else {
+      this.frequency = 'weekly';
     }
   }
 
@@ -61,6 +97,15 @@ struct EditHabit {
     this.color = t.color;
     this.targetCount = t.targetCount;
     this.unit = t.unit;
+    this.isCountMode = t.targetCount > 1;
+  }
+
+  /** 实际保存的目标数：打卡模式恒为 1 */
+  effectiveTarget(): number {
+    if (!this.isCountMode) {
+      return 1;
+    }
+    return this.targetCount < 1 ? 1 : this.targetCount;
   }
 
   toggleWeekday(d: number): void {
@@ -97,8 +142,8 @@ struct EditHabit {
         h.weekdays = this.frequency === 'weekly' ? this.weekdays.slice() : [];
         h.reminderEnabled = this.reminderEnabled;
         h.reminderTime = this.reminderTime;
-        h.targetCount = this.targetCount < 1 ? 1 : this.targetCount;
-        h.unit = this.unit.trim();
+        h.targetCount = this.effectiveTarget();
+        h.unit = this.isCountMode ? this.unit.trim() : '';
         h.timeOfDay = this.timeOfDay;
         habit = h;
         await this.store.update(h);
@@ -108,7 +153,7 @@ struct EditHabit {
           todayStr(), [], this.frequency,
           this.frequency === 'weekly' ? this.weekdays.slice() : [],
           this.reminderEnabled, this.reminderTime, -1, false, 0,
-          this.targetCount < 1 ? 1 : this.targetCount, this.unit.trim(), {}, this.timeOfDay);
+          this.effectiveTarget(), this.isCountMode ? this.unit.trim() : '', {}, this.timeOfDay);
         await this.store.add(habit);
       }
       const newId: number = await NotificationService.schedule(habit);
@@ -235,33 +280,31 @@ struct EditHabit {
         Text(this.emoji).fontSize(26)
       }
       .margin({ right: 14 })
-      Text(this.name.length > 0 ? this.name : '习惯名称')
+      TextInput({ text: this.name, placeholder: '习惯名称' })
         .fontSize(18)
         .fontWeight(FontWeight.Medium)
-        .fontColor(this.name.length > 0 ? this.th().textPrimary : this.th().textTertiary)
+        .fontColor(this.th().textPrimary)
+        .placeholderColor(this.th().textTertiary)
+        .backgroundColor('#00000000')
+        .borderRadius(0)
+        .height(52)
+        .padding({ left: 0, right: 0, top: 0, bottom: 0 })
+        .maxLength(20)
         .layoutWeight(1)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .onFocus(() => this.nameFocused = true)
+        .onBlur(() => this.nameFocused = false)
+        .onChange((v: string) => this.name = v)
     }
     .width('100%')
+    .alignItems(VerticalAlign.Center)
     .padding(16)
     .backgroundColor(this.th().surface)
     .borderRadius(18)
-    .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
+    .border({
+      width: this.nameFocused ? 2 : this.cardBorderWidth(),
+      color: this.nameFocused ? this.th().accent : this.th().cardBorder
+    })
     .margin({ top: 8 })
-
-    this.SectionLabel('名称')
-    TextInput({ text: this.name, placeholder: '例如：每天喝水 8 杯' })
-      .fontSize(16)
-      .height(52)
-      .fontColor(this.th().textPrimary)
-      .placeholderColor(this.th().textTertiary)
-      .backgroundColor(this.th().surface)
-      .borderRadius(14)
-      .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
-      .padding({ left: 16, right: 16 })
-      .maxLength(20)
-      .onChange((v: string) => this.name = v)
   }
 
   @Builder
@@ -269,16 +312,20 @@ struct EditHabit {
     this.SectionLabel('图标')
     Flex({ wrap: FlexWrap.Wrap }) {
       ForEach(HABIT_EMOJIS, (e: string) => {
-        Stack() {
-          Circle()
-            .width(46)
-            .height(46)
-            .fill(this.emoji === e ? this.color + (this.themeDark ? '33' : '22') : this.th().surface)
-            .stroke(this.emoji === e ? this.color : this.th().cardBorder)
-            .strokeWidth(this.emoji === e ? 2 : (this.themeDark ? 1 : 0))
-          Text(e).fontSize(22)
+        Column() {
+          Stack() {
+            Circle()
+              .width(46)
+              .height(46)
+              .fill(this.emoji === e ? this.color + (this.themeDark ? '33' : '22') : this.th().surface)
+              .stroke(this.emoji === e ? this.color : this.th().cardBorder)
+              .strokeWidth(this.emoji === e ? 2 : (this.themeDark ? 1 : 0))
+            Text(e).fontSize(22)
+          }
         }
-        .margin({ right: 10, bottom: 10 })
+        .width('16.66%')
+        .justifyContent(FlexAlign.Center)
+        .margin({ bottom: 12 })
         .onClick(() => this.emoji = e)
       }, (e: string) => e)
     }
@@ -290,13 +337,17 @@ struct EditHabit {
     this.SectionLabel('颜色')
     Flex({ wrap: FlexWrap.Wrap }) {
       ForEach(HABIT_COLORS, (c: string) => {
-        Stack() {
-          Circle().width(40).height(40).fill(c)
-          if (this.color === c) {
-            Text('✓').fontSize(18).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+        Column() {
+          Stack() {
+            Circle().width(40).height(40).fill(c)
+            if (this.color === c) {
+              Text('✓').fontSize(18).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+            }
           }
         }
-        .margin({ right: 14, bottom: 12 })
+        .width('16.66%')
+        .justifyContent(FlexAlign.Center)
+        .margin({ bottom: 12 })
         .onClick(() => this.color = c)
       }, (c: string) => c)
     }
@@ -304,45 +355,74 @@ struct EditHabit {
   }
 
   @Builder
+  ModeTab(label: string, count: boolean) {
+    Text(label)
+      .fontSize(15)
+      .fontColor(this.isCountMode === count ? this.th().accentText : this.th().textSecondary)
+      .fontWeight(this.isCountMode === count ? FontWeight.Medium : FontWeight.Normal)
+      .textAlign(TextAlign.Center)
+      .layoutWeight(1)
+      .height(38)
+      .borderRadius(10)
+      .backgroundColor(this.isCountMode === count ? this.th().accent : '#00000000')
+      .onClick(() => this.isCountMode = count)
+  }
+
+  @Builder
   TargetSection() {
     this.SectionLabel('每日目标')
     Row() {
-      Text(this.targetCount.toString())
-        .fontSize(18)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.th().textPrimary)
-        .layoutWeight(1)
-      Text('−')
-        .fontSize(22)
-        .fontColor(this.targetCount > 1 ? this.th().accent : this.th().textTertiary)
-        .width(40)
-        .height(36)
-        .textAlign(TextAlign.Center)
-        .backgroundColor(this.th().surfaceAlt)
-        .borderRadius(10)
-        .onClick(() => {
-          if (this.targetCount > 1) {
-            this.targetCount--;
-          }
-        })
-      Text('+')
-        .fontSize(22)
-        .fontColor(this.th().accent)
-        .width(40)
-        .height(36)
-        .textAlign(TextAlign.Center)
-        .backgroundColor(this.th().surfaceAlt)
-        .borderRadius(10)
-        .margin({ left: 10 })
-        .onClick(() => this.targetCount++)
+      this.ModeTab('打卡', false)
+      this.ModeTab('计数', true)
     }
     .width('100%')
-    .padding(16)
+    .padding(4)
     .backgroundColor(this.th().surface)
     .borderRadius(14)
     .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
 
-    if (this.targetCount > 1) {
+    if (this.isCountMode) {
+      Row() {
+        Text('目标数量')
+          .fontSize(16)
+          .fontColor(this.th().textPrimary)
+          .layoutWeight(1)
+        Text('−')
+          .fontSize(22)
+          .fontColor(this.targetCount > 1 ? this.th().accent : this.th().textTertiary)
+          .width(38)
+          .height(34)
+          .textAlign(TextAlign.Center)
+          .backgroundColor(this.th().surfaceAlt)
+          .borderRadius(10)
+          .onClick(() => {
+            if (this.targetCount > 1) {
+              this.targetCount--;
+            }
+          })
+        Text(this.targetCount + (this.unit.length > 0 ? ' ' + this.unit : ''))
+          .fontSize(16)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.th().textPrimary)
+          .constraintSize({ minWidth: 56 })
+          .textAlign(TextAlign.Center)
+        Text('+')
+          .fontSize(22)
+          .fontColor(this.th().accent)
+          .width(38)
+          .height(34)
+          .textAlign(TextAlign.Center)
+          .backgroundColor(this.th().surfaceAlt)
+          .borderRadius(10)
+          .onClick(() => this.targetCount++)
+      }
+      .width('100%')
+      .padding(16)
+      .backgroundColor(this.th().surface)
+      .borderRadius(14)
+      .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
+      .margin({ top: 10 })
+
       TextInput({ text: this.unit, placeholder: '单位（如 杯 / 分钟 / 页），可留空' })
         .fontSize(15)
         .height(48)
@@ -389,25 +469,27 @@ struct EditHabit {
   }
 
   @Builder
-  FreqTab(label: string, value: FrequencyType) {
+  FreqTab(label: string, mode: string) {
     Text(label)
-      .fontSize(15)
-      .fontColor(this.frequency === value ? this.th().accentText : this.th().textSecondary)
-      .fontWeight(this.frequency === value ? FontWeight.Medium : FontWeight.Normal)
+      .fontSize(14)
+      .fontColor(this.freqMode === mode ? this.th().accentText : this.th().textSecondary)
+      .fontWeight(this.freqMode === mode ? FontWeight.Medium : FontWeight.Normal)
       .textAlign(TextAlign.Center)
       .layoutWeight(1)
       .height(38)
       .borderRadius(10)
-      .backgroundColor(this.frequency === value ? this.th().accent : '#00000000')
-      .onClick(() => this.frequency = value)
+      .backgroundColor(this.freqMode === mode ? this.th().accent : '#00000000')
+      .onClick(() => this.selectFreqMode(mode))
   }
 
   @Builder
   FrequencyPicker() {
     this.SectionLabel('频率')
-    Row() {
+    Row({ space: 4 }) {
       this.FreqTab('每天', 'daily')
-      this.FreqTab('每周', 'weekly')
+      this.FreqTab('工作日', 'workday')
+      this.FreqTab('周末', 'weekend')
+      this.FreqTab('自定义', 'custom')
     }
     .width('100%')
     .padding(4)
@@ -415,13 +497,13 @@ struct EditHabit {
     .borderRadius(14)
     .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
 
-    if (this.frequency === 'weekly') {
+    if (this.freqMode === 'custom') {
       Row() {
-        ForEach([1, 2, 3, 4, 5, 6, 0], (d: number) => {
+        ForEach([0, 1, 2, 3, 4, 5, 6], (d: number) => {
           Stack() {
             Circle()
-              .width(38)
-              .height(38)
+              .width(40)
+              .height(40)
               .fill(this.weekdays.indexOf(d) >= 0 ? this.color : this.th().surface)
               .stroke(this.weekdays.indexOf(d) >= 0 ? this.color : this.th().cardBorder)
               .strokeWidth(this.themeDark ? 1 : 0)

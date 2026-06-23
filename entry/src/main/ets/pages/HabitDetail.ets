@@ -2,7 +2,7 @@ import { router } from '@kit.ArkUI';
 import { promptAction } from '@kit.ArkUI';
 import { HabitStore } from '../model/HabitStore';
 import { Habit, currentStreak, longestStreak, completionRate, frequencyLabel,
-  isScheduledOn, toDateStr, todayStr, addDays, isQuantifiable } from '../model/Habit';
+  isScheduledOn, toDateStr, todayStr, addDays, isQuantifiable, valueToday } from '../model/Habit';
 import { getTheme, AppTheme } from '../model/Theme';
 
 interface DetailParams {
@@ -41,6 +41,7 @@ struct HabitDetail {
   @State year: number = new Date().getFullYear();
   @State month: number = new Date().getMonth();
   @State refreshKey: number = 0;
+  @State todayVal: number = 0;
   private store: HabitStore = HabitStore.getInstance();
 
   th(): AppTheme {
@@ -52,6 +53,9 @@ struct HabitDetail {
     if (params && params.id) {
       const h: Habit | undefined = this.store.getById(params.id);
       this.habit = h !== undefined ? h : null;
+      if (this.habit !== null) {
+        this.todayVal = valueToday(this.habit);
+      }
     }
   }
 
@@ -64,6 +68,17 @@ struct HabitDetail {
       return;
     }
     await this.store.setChecked(this.habit.id, cell.dateStr, !cell.checked);
+    this.todayVal = valueToday(this.habit);
+    this.refreshKey++;
+  }
+
+  /** 量化习惯：今日进度增减 */
+  async changeToday(delta: number): Promise<void> {
+    if (this.habit === null) {
+      return;
+    }
+    await this.store.addValue(this.habit.id, delta);
+    this.todayVal = valueToday(this.habit);
     this.refreshKey++;
   }
 
@@ -139,6 +154,9 @@ struct HabitDetail {
         Scroll() {
           Column() {
             this.HeroCard()
+            if (isQuantifiable(this.habit as Habit)) {
+              this.TodayProgress()
+            }
             this.StatsRow()
             this.Heatmap()
             this.Calendar()
@@ -197,13 +215,6 @@ struct HabitDetail {
           .fontColor(this.th().textTertiary)
       }
       .margin({ top: 6 })
-      if (isQuantifiable(this.habit as Habit)) {
-        Text('🎯 每日目标 ' + (this.habit as Habit).targetCount
-          + ((this.habit as Habit).unit.length > 0 ? ' ' + (this.habit as Habit).unit : ''))
-          .fontSize(13)
-          .fontColor(this.th().textTertiary)
-          .margin({ top: 6 })
-      }
     }
     .width('100%')
     .padding({ top: 24, bottom: 24 })
@@ -211,6 +222,71 @@ struct HabitDetail {
     .borderRadius(22)
     .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
     .margin({ top: 8 })
+  }
+
+  @Builder
+  TodayProgress() {
+    Column() {
+      Row() {
+        Text('今日进度')
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.th().textPrimary)
+          .layoutWeight(1)
+        Text(this.todayVal + ' / ' + (this.habit as Habit).targetCount
+          + ((this.habit as Habit).unit.length > 0 ? ' ' + (this.habit as Habit).unit : ''))
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.todayVal >= (this.habit as Habit).targetCount
+            ? this.th().success : (this.habit as Habit).color)
+      }
+      .width('100%')
+
+      Row() {
+        Text('−')
+          .fontSize(24)
+          .fontColor(this.todayVal > 0 ? (this.habit as Habit).color : this.th().textTertiary)
+          .width(48)
+          .height(44)
+          .textAlign(TextAlign.Center)
+          .backgroundColor(this.th().surfaceAlt)
+          .borderRadius(12)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .onClick(() => {
+            if (this.todayVal > 0) {
+              this.changeToday(-1);
+            }
+          })
+        Progress({
+          value: this.todayVal,
+          total: (this.habit as Habit).targetCount,
+          type: ProgressType.Capsule
+        })
+          .layoutWeight(1)
+          .height(14)
+          .color((this.habit as Habit).color)
+          .backgroundColor(this.th().track)
+          .margin({ left: 14, right: 14 })
+        Text('+')
+          .fontSize(24)
+          .fontColor((this.habit as Habit).color)
+          .width(48)
+          .height(44)
+          .textAlign(TextAlign.Center)
+          .backgroundColor(this.th().surfaceAlt)
+          .borderRadius(12)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .onClick(() => this.changeToday(1))
+      }
+      .width('100%')
+      .margin({ top: 16 })
+    }
+    .width('100%')
+    .padding(18)
+    .backgroundColor(this.th().surface)
+    .borderRadius(20)
+    .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
+    .margin({ top: 12 })
   }
 
   @Builder
@@ -258,12 +334,33 @@ struct HabitDetail {
   @Builder
   Heatmap() {
     Column() {
-      Text('打卡热力图')
-        .fontSize(15)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.th().textPrimary)
-        .width('100%')
-        .margin({ bottom: 12 })
+      Row() {
+        Text('打卡热力图')
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.th().textPrimary)
+          .layoutWeight(1)
+        Text('未打卡')
+          .fontSize(11)
+          .fontColor(this.th().textTertiary)
+        Column()
+          .width(11)
+          .height(11)
+          .borderRadius(3)
+          .backgroundColor(this.th().track)
+          .margin({ left: 5, right: 5 })
+        Column()
+          .width(11)
+          .height(11)
+          .borderRadius(3)
+          .backgroundColor((this.habit as Habit).color)
+        Text('已打卡')
+          .fontSize(11)
+          .fontColor(this.th().textTertiary)
+          .margin({ left: 5 })
+      }
+      .width('100%')
+      .margin({ bottom: 12 })
       Grid() {
         ForEach(this.buildHeat(), (c: HeatCell, idx: number) => {
           GridItem() {
@@ -336,9 +433,11 @@ struct HabitDetail {
                   .width(34)
                   .height(34)
                   .fill(cell.checked ? (this.habit as Habit).color : '#00000000')
-                  .stroke(!cell.checked && cell.scheduled && cell.dateStr <= todayStr()
-                    ? this.th().divider : '#00000000')
-                  .strokeWidth(1.5)
+                  .stroke(cell.dateStr === todayStr() && !cell.checked
+                    ? (this.habit as Habit).color
+                    : (!cell.checked && cell.scheduled && cell.dateStr <= todayStr()
+                      ? this.th().divider : '#00000000'))
+                  .strokeWidth(cell.dateStr === todayStr() && !cell.checked ? 2 : 1.5)
                 Text(cell.day.toString())
                   .fontSize(14)
                   .fontColor(cell.checked ? '#FFFFFF'
