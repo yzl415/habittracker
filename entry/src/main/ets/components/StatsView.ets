@@ -121,7 +121,7 @@ export struct StatsView {
   build() {
     Column() {
       Text('统计')
-        .fontSize(30)
+        .fontSize(28)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.th().textPrimary)
         .letterSpacing(0.2)
@@ -166,11 +166,11 @@ export struct StatsView {
   StatCard(value: string, label: string, accent: string) {
     Column() {
       Text(value)
-        .fontSize(25)
+        .fontSize(26)
         .fontWeight(FontWeight.Bold)
         .fontColor(accent)
       Text(label)
-        .fontSize(13)
+        .fontSize(12)
         .fontColor(this.th().textSecondary)
         .margin({ top: 6 })
     }
@@ -192,8 +192,8 @@ export struct StatsView {
     .margin({ top: 4 })
 
     Row({ space: 12 }) {
-      this.StatCard(this.totalCheckins().toString(), '累计打卡', '#FF7B54')
-      this.StatCard(this.bestStreak() + ' 天', '最佳连续', '#A855F7')
+      this.StatCard(this.totalCheckins().toString(), '累计打卡', this.themeDark ? '#FB923C' : '#FF7B54')
+      this.StatCard(this.bestStreak() + ' 天', '最佳连续', this.themeDark ? '#C084FC' : '#A855F7')
     }
     .width('100%')
     .margin({ top: 12 })
@@ -203,8 +203,8 @@ export struct StatsView {
   WeekChart() {
     Column() {
       Text('近 7 日完成率')
-        .fontSize(15)
-        .fontWeight(FontWeight.Medium)
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
         .fontColor(this.th().textPrimary)
         .width('100%')
       Row() {
@@ -244,7 +244,7 @@ export struct StatsView {
     .width('100%')
     .padding(18)
     .backgroundColor(this.th().surface)
-    .borderRadius(20)
+    .borderRadius(22)
     .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
     .margin({ top: 12 })
   }
@@ -253,17 +253,20 @@ export struct StatsView {
   Ranking() {
     Column() {
       Text('坚持排行')
-        .fontSize(15)
-        .fontWeight(FontWeight.Medium)
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
         .fontColor(this.th().textPrimary)
         .width('100%')
         .margin({ bottom: 4 })
       ForEach(this.ranking(), (h: Habit, idx: number) => {
         Row() {
           Stack() {
-            Circle().width(36).height(36).fill(h.color + (this.themeDark ? '2E' : '1F'))
             Text(h.emoji).fontSize(18)
           }
+          .width(36)
+          .height(36)
+          .borderRadius(11)
+          .backgroundColor(h.color + (this.themeDark ? '2E' : '1F'))
           .margin({ right: 12 })
           Column() {
             Row() {
@@ -276,7 +279,7 @@ export struct StatsView {
               Text('🔥 ' + currentStreak(h))
                 .fontSize(14)
                 .fontWeight(FontWeight.Medium)
-                .fontColor(h.color)
+                .fontColor(this.themeDark ? '#FB923C' : '#FF7B54')
                 .margin({ left: 8 })
             }
             .width('100%')
@@ -301,7 +304,7 @@ export struct StatsView {
     .width('100%')
     .padding(18)
     .backgroundColor(this.th().surface)
-    .borderRadius(20)
+    .borderRadius(22)
     .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
     .margin({ top: 12 })
   }

@@ -176,11 +176,18 @@ struct HabitDetail {
   @Builder
   NavBar() {
     Row() {
-      Text('‹ 返回')
-        .fontSize(16)
-        .fontColor(this.th().accent)
-        .onClick(() => router.back())
-        .layoutWeight(1)
+      Row() {
+        Text('‹')
+          .fontSize(24)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.th().accent)
+        Text('返回')
+          .fontSize(16)
+          .fontColor(this.th().accent)
+          .margin({ left: 2 })
+      }
+      .layoutWeight(1)
+      .onClick(() => router.back())
       Text('编辑')
         .fontSize(16)
         .fontColor(this.th().accent)
@@ -191,36 +198,75 @@ struct HabitDetail {
         })
     }
     .width('100%')
-    .padding({ left: 20, right: 20, top: 14, bottom: 10 })
+    .padding({ left: 18, right: 18, top: 14, bottom: 10 })
+  }
+
+  /** Hero 环形进度：量化习惯按今日值/目标，普通打卡按今日是否完成(满/空) */
+  heroRingValue(): number {
+    const h: Habit = this.habit as Habit;
+    if (isQuantifiable(h)) {
+      return this.todayVal;
+    }
+    return h.checkedDates.indexOf(todayStr()) >= 0 ? 1 : 0;
+  }
+
+  heroRingTotal(): number {
+    const h: Habit = this.habit as Habit;
+    return isQuantifiable(h) ? h.targetCount : 1;
   }
 
   @Builder
   HeroCard() {
     Column() {
       Stack() {
-        Circle().width(72).height(72).fill((this.habit as Habit).color + (this.themeDark ? '2E' : '1F'))
-        Text((this.habit as Habit).emoji).fontSize(34)
+        Progress({
+          value: this.heroRingValue(),
+          total: this.heroRingTotal(),
+          type: ProgressType.Ring
+        })
+          .width(104)
+          .height(104)
+          .color((this.habit as Habit).color)
+          .style({ strokeWidth: 8 })
+          .backgroundColor(this.th().track)
+        Stack() {
+          Text((this.habit as Habit).emoji).fontSize(36)
+        }
+        .width(72)
+        .height(72)
+        .borderRadius(36)
+        .backgroundColor((this.habit as Habit).color + (this.themeDark ? '2E' : '1F'))
       }
       Text((this.habit as Habit).name)
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.th().textPrimary)
-        .margin({ top: 12 })
+        .margin({ top: 14 })
       Row() {
-        Text('🔥 当前连续 ' + currentStreak(this.habit as Habit) + ' 天')
-          .fontSize(14)
-          .fontColor((this.habit as Habit).color)
-        Text('  ·  ' + frequencyLabel(this.habit as Habit))
-          .fontSize(14)
+        Row() {
+          Text('🔥').fontSize(13)
+          Text('当前连续 ' + currentStreak(this.habit as Habit) + ' 天')
+            .fontSize(13)
+            .fontWeight(FontWeight.Bold)
+            .fontColor((this.habit as Habit).color)
+            .margin({ left: 4 })
+        }
+        .padding({ left: 11, right: 11, top: 5, bottom: 5 })
+        .backgroundColor((this.habit as Habit).color + (this.themeDark ? '2E' : '1F'))
+        .borderRadius(20)
+        Text(frequencyLabel(this.habit as Habit))
+          .fontSize(13)
           .fontColor(this.th().textTertiary)
+          .margin({ left: 8 })
       }
-      .margin({ top: 6 })
+      .margin({ top: 10 })
     }
     .width('100%')
-    .padding({ top: 24, bottom: 24 })
+    .padding({ top: 24, bottom: 22 })
     .backgroundColor(this.th().surface)
-    .borderRadius(22)
+    .borderRadius(24)
     .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
+    .shadow({ radius: this.th().shadowRadius, color: this.th().shadowColor, offsetX: 0, offsetY: 3 })
     .margin({ top: 8 })
   }
 
@@ -229,14 +275,14 @@ struct HabitDetail {
     Column() {
       Row() {
         Text('今日进度')
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
           .fontColor(this.th().textPrimary)
           .layoutWeight(1)
         Text(this.todayVal + ' / ' + (this.habit as Habit).targetCount
           + ((this.habit as Habit).unit.length > 0 ? ' ' + (this.habit as Habit).unit : ''))
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
           .fontColor(this.todayVal >= (this.habit as Habit).targetCount
             ? this.th().success : (this.habit as Habit).color)
       }
@@ -245,12 +291,12 @@ struct HabitDetail {
       Row() {
         Text('−')
           .fontSize(24)
-          .fontColor(this.todayVal > 0 ? (this.habit as Habit).color : this.th().textTertiary)
+          .fontColor(this.todayVal > 0 ? this.th().textSecondary : this.th().textTertiary)
           .width(48)
-          .height(44)
+          .height(48)
           .textAlign(TextAlign.Center)
           .backgroundColor(this.th().surfaceAlt)
-          .borderRadius(12)
+          .borderRadius(15)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .onClick(() => {
             if (this.todayVal > 0) {
@@ -263,18 +309,20 @@ struct HabitDetail {
           type: ProgressType.Capsule
         })
           .layoutWeight(1)
-          .height(14)
+          .height(12)
           .color((this.habit as Habit).color)
           .backgroundColor(this.th().track)
           .margin({ left: 14, right: 14 })
         Text('+')
           .fontSize(24)
-          .fontColor((this.habit as Habit).color)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#FFFFFF')
           .width(48)
-          .height(44)
+          .height(48)
           .textAlign(TextAlign.Center)
-          .backgroundColor(this.th().surfaceAlt)
-          .borderRadius(12)
+          .backgroundColor((this.habit as Habit).color)
+          .borderRadius(15)
+          .shadow({ radius: 12, color: (this.habit as Habit).color + '55', offsetX: 0, offsetY: 5 })
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .onClick(() => this.changeToday(1))
       }
@@ -284,22 +332,30 @@ struct HabitDetail {
     .width('100%')
     .padding(18)
     .backgroundColor(this.th().surface)
-    .borderRadius(20)
+    .borderRadius(24)
     .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
-    .margin({ top: 12 })
+    .shadow({ radius: this.th().shadowRadius, color: this.th().shadowColor, offsetX: 0, offsetY: 3 })
+    .margin({ top: 18 })
   }
 
   @Builder
-  StatItem(label: string, value: string) {
+  StatItem(label: string, value: string, unit: string, accent: string) {
     Column() {
-      Text(value)
-        .fontSize(21)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.th().textPrimary)
+      Text() {
+        Span(value)
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(accent)
+        if (unit.length > 0) {
+          Span(' ' + unit)
+            .fontSize(14)
+            .fontColor(this.th().textTertiary)
+        }
+      }
       Text(label)
-        .fontSize(12)
-        .fontColor(this.th().textTertiary)
-        .margin({ top: 4 })
+        .fontSize(11)
+        .fontColor(this.th().textSecondary)
+        .margin({ top: 5 })
     }
     .layoutWeight(1)
   }
@@ -307,18 +363,19 @@ struct HabitDetail {
   @Builder
   StatsRow() {
     Row() {
-      this.StatItem('最长连续', longestStreak(this.habit as Habit) + ' 天')
+      this.StatItem('最长连续', longestStreak(this.habit as Habit).toString(), '天', this.th().textPrimary)
       Divider().vertical(true).height(32).color(this.th().divider)
-      this.StatItem('累计打卡', (this.habit as Habit).checkedDates.length + ' 次')
+      this.StatItem('累计打卡', (this.habit as Habit).checkedDates.length.toString(), '次', this.th().textPrimary)
       Divider().vertical(true).height(32).color(this.th().divider)
-      this.StatItem('30天完成', completionRate(this.habit as Habit, 30) + '%')
+      this.StatItem('30天完成', completionRate(this.habit as Habit, 30) + '%', '', (this.habit as Habit).color)
     }
     .width('100%')
     .padding({ top: 18, bottom: 18 })
     .backgroundColor(this.th().surface)
-    .borderRadius(20)
+    .borderRadius(24)
     .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
-    .margin({ top: 12 })
+    .shadow({ radius: this.th().shadowRadius, color: this.th().shadowColor, offsetX: 0, offsetY: 3 })
+    .margin({ top: 18 })
   }
 
   heatColor(level: number): string {
@@ -337,18 +394,18 @@ struct HabitDetail {
       Row() {
         Text('打卡热力图')
           .fontSize(15)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(FontWeight.Bold)
           .fontColor(this.th().textPrimary)
           .layoutWeight(1)
-        Text('未打卡')
-          .fontSize(11)
-          .fontColor(this.th().textTertiary)
         Column()
           .width(11)
           .height(11)
           .borderRadius(3)
           .backgroundColor(this.th().track)
-          .margin({ left: 5, right: 5 })
+        Text('未打卡')
+          .fontSize(11)
+          .fontColor(this.th().textTertiary)
+          .margin({ left: 5, right: 10 })
         Column()
           .width(11)
           .height(11)
@@ -360,7 +417,7 @@ struct HabitDetail {
           .margin({ left: 5 })
       }
       .width('100%')
-      .margin({ bottom: 12 })
+      .margin({ bottom: 15 })
       Grid() {
         ForEach(this.buildHeat(), (c: HeatCell, idx: number) => {
           GridItem() {
@@ -381,9 +438,10 @@ struct HabitDetail {
     .width('100%')
     .padding(18)
     .backgroundColor(this.th().surface)
-    .borderRadius(20)
+    .borderRadius(24)
     .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
-    .margin({ top: 12 })
+    .shadow({ radius: this.th().shadowRadius, color: this.th().shadowColor, offsetX: 0, offsetY: 3 })
+    .margin({ top: 18 })
   }
 
   @Builder
@@ -391,26 +449,32 @@ struct HabitDetail {
     Column() {
       Row() {
         Text('‹')
-          .fontSize(22)
+          .fontSize(20)
           .fontColor(this.th().textSecondary)
-          .width(36)
+          .width(30)
+          .height(30)
           .textAlign(TextAlign.Center)
+          .backgroundColor(this.th().surfaceAlt)
+          .borderRadius(9)
           .onClick(() => this.prevMonth())
         Text(this.year + ' 年 ' + (this.month + 1) + ' 月')
           .fontSize(16)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(FontWeight.Bold)
           .fontColor(this.th().textPrimary)
           .layoutWeight(1)
           .textAlign(TextAlign.Center)
         Text('›')
-          .fontSize(22)
+          .fontSize(20)
           .fontColor(this.th().textSecondary)
-          .width(36)
+          .width(30)
+          .height(30)
           .textAlign(TextAlign.Center)
+          .backgroundColor(this.th().surfaceAlt)
+          .borderRadius(9)
           .onClick(() => this.nextMonth())
       }
       .width('100%')
-      .margin({ bottom: 12 })
+      .margin({ bottom: 14 })
 
       Row() {
         ForEach(['日', '一', '二', '三', '四', '五', '六'], (w: string) => {
@@ -430,8 +494,8 @@ struct HabitDetail {
             if (cell.day > 0) {
               Stack() {
                 Circle()
-                  .width(34)
-                  .height(34)
+                  .width(36)
+                  .height(36)
                   .fill(cell.checked ? (this.habit as Habit).color : '#00000000')
                   .stroke(cell.dateStr === todayStr() && !cell.checked
                     ? (this.habit as Habit).color
@@ -442,7 +506,7 @@ struct HabitDetail {
                   .fontSize(14)
                   .fontColor(cell.checked ? '#FFFFFF'
                     : (cell.dateStr === todayStr() ? (this.habit as Habit).color : this.th().textSecondary))
-                  .fontWeight(cell.dateStr === todayStr() ? FontWeight.Bold : FontWeight.Normal)
+                  .fontWeight(cell.dateStr === todayStr() || cell.checked ? FontWeight.Bold : FontWeight.Normal)
               }
               .onClick(() => this.onTapDay(cell))
             }
@@ -461,10 +525,11 @@ struct HabitDetail {
         .margin({ top: 12 })
     }
     .width('100%')
-    .padding(16)
+    .padding(18)
     .backgroundColor(this.th().surface)
-    .borderRadius(20)
+    .borderRadius(24)
     .border({ width: this.cardBorderWidth(), color: this.th().cardBorder })
-    .margin({ top: 12 })
+    .shadow({ radius: this.th().shadowRadius, color: this.th().shadowColor, offsetX: 0, offsetY: 3 })
+    .margin({ top: 18 })
   }
 }

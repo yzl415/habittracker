@@ -150,26 +150,37 @@ export class HabitStore {
       return;
     }
     const idx: number = h.checkedDates.indexOf(dateStr);
+    const dates: string[] = h.checkedDates.slice();
+    const dv: Record<string, number> = {};
+    Object.keys(h.dailyValues).forEach((k: string) => {
+      dv[k] = h.dailyValues[k];
+    });
     if (checked && idx < 0) {
-      h.checkedDates.push(dateStr);
-      h.checkedDates.sort();
-      h.dailyValues[dateStr] = h.targetCount;
+      dates.push(dateStr);
+      dates.sort();
+      dv[dateStr] = h.targetCount;
     } else if (!checked && idx >= 0) {
-      h.checkedDates.splice(idx, 1);
-      h.dailyValues[dateStr] = 0;
+      dates.splice(idx, 1);
+      dv[dateStr] = 0;
     }
+    h.checkedDates = dates;
+    h.dailyValues = dv;
     await this.persist();
   }
 
-  /** 同步达标状态：value 达到目标则标记完成，否则取消 */
+  /** 同步达标状态：value 达到目标则标记完成，否则取消。用整体重赋触发 @Observed 观测 */
   private syncChecked(h: Habit, dateStr: string): void {
     const reached: boolean = (h.dailyValues[dateStr] !== undefined ? h.dailyValues[dateStr] : 0) >= h.targetCount;
     const idx: number = h.checkedDates.indexOf(dateStr);
     if (reached && idx < 0) {
-      h.checkedDates.push(dateStr);
-      h.checkedDates.sort();
+      const arr: string[] = h.checkedDates.slice();
+      arr.push(dateStr);
+      arr.sort();
+      h.checkedDates = arr;
     } else if (!reached && idx >= 0) {
-      h.checkedDates.splice(idx, 1);
+      const arr: string[] = h.checkedDates.slice();
+      arr.splice(idx, 1);
+      h.checkedDates = arr;
     }
   }
 
@@ -188,7 +199,13 @@ export class HabitStore {
     if (next > h.targetCount) {
       next = h.targetCount;
     }
-    h.dailyValues[today] = next;
+    // 整体重赋 dailyValues，触发 @Observed/@ObjectLink 观测，使量化环原地平滑更新
+    const dv: Record<string, number> = {};
+    Object.keys(h.dailyValues).forEach((k: string) => {
+      dv[k] = h.dailyValues[k];
+    });
+    dv[today] = next;
+    h.dailyValues = dv;
     this.syncChecked(h, today);
     await this.persist();
   }
@@ -264,17 +281,24 @@ export class HabitStore {
     }
     const today: string = todayStr();
     const idx: number = habit.checkedDates.indexOf(today);
+    const dates: string[] = habit.checkedDates.slice();
+    const dv: Record<string, number> = {};
+    Object.keys(habit.dailyValues).forEach((k: string) => {
+      dv[k] = habit.dailyValues[k];
+    });
     let checked: boolean;
     if (idx >= 0) {
-      habit.checkedDates.splice(idx, 1);
-      habit.dailyValues[today] = 0;
+      dates.splice(idx, 1);
+      dv[today] = 0;
       checked = false;
     } else {
-      habit.checkedDates.push(today);
-      habit.checkedDates.sort();
-      habit.dailyValues[today] = habit.targetCount;
+      dates.push(today);
+      dates.sort();
+      dv[today] = habit.targetCount;
       checked = true;
     }
+    habit.checkedDates = dates;
+    habit.dailyValues = dv;
     await this.persist();
     return checked;
   }

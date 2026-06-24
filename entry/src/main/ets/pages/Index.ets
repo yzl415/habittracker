@@ -70,6 +70,7 @@ struct Index {
         .margin({ top: 4 })
     }
     .width('100%')
+    .alignItems(HorizontalAlign.Center)
     .padding({ top: 9, bottom: 4 })
   }
 

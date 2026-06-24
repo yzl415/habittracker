@@ -109,7 +109,7 @@ export struct MineView {
   build() {
     Column() {
       Text('我的')
-        .fontSize(30)
+        .fontSize(28)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.th().textPrimary)
         .letterSpacing(0.2)
@@ -139,7 +139,7 @@ export struct MineView {
   @Builder
   SummaryCard() {
     Row() {
-      this.SummaryItem(this.activeNum.toString(), '活跃习惯', this.th().accent)
+      this.SummaryItem(this.activeNum.toString(), '活跃习惯', this.th().textPrimary)
       Divider().vertical(true).height(34).color(this.th().divider)
       this.SummaryItem(this.totalCheckins.toString(), '累计打卡', this.th().textPrimary)
       Divider().vertical(true).height(34).color(this.th().divider)
@@ -158,10 +158,10 @@ export struct MineView {
   SummaryItem(value: string, label: string, valueColor: string) {
     Column() {
       Text(value)
-        .fontSize(25)
+        .fontSize(22)
         .fontWeight(FontWeight.Bold)
         .fontColor(valueColor)
-      Text(label).fontSize(12).fontColor(this.th().textSecondary).margin({ top: 5 })
+      Text(label).fontSize(11).fontColor(this.th().textSecondary).margin({ top: 5 })
     }
     .layoutWeight(1)
   }
@@ -171,9 +171,12 @@ export struct MineView {
     Row() {
       Column() {
         Stack() {
-          Circle().width(38).height(38).fill(this.th().accentSoft)
           AppIcon({ name: this.themeDark ? 'moon' : 'sun', color: this.th().accent, iconSize: 22, cutout: this.th().accentSoft })
         }
+        .width(38)
+        .height(38)
+        .borderRadius(11)
+        .backgroundColor(this.th().accentSoft)
         .margin({ right: 14 })
       }
       Column() {
@@ -205,9 +208,12 @@ export struct MineView {
     Column() {
       Row() {
         Stack() {
-          Circle().width(34).height(34).fill(this.th().surfaceAlt)
           AppIcon({ name: icon, color: this.th().textSecondary, iconSize: 19, stroke: 1.9, cutout: this.th().surfaceAlt })
         }
+        .width(34)
+        .height(34)
+        .borderRadius(10)
+        .backgroundColor(this.th().surfaceAlt)
         .margin({ right: 13 })
         Text(label).fontSize(15.5).fontColor(this.th().textPrimary).layoutWeight(1)
         if (trailing.length > 0) {
@@ -286,9 +292,12 @@ export struct MineView {
         Column() {
           Row() {
             Stack() {
-              Circle().width(34).height(34).fill(h.color + (this.themeDark ? '2E' : '1F'))
               Text(h.emoji).fontSize(17)
             }
+            .width(34)
+            .height(34)
+            .borderRadius(10)
+            .backgroundColor(h.color + (this.themeDark ? '2E' : '1F'))
             .margin({ right: 12 })
             Text(h.name)
               .fontSize(15)

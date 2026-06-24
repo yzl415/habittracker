@@ -237,21 +237,23 @@ struct EditHabit {
   @Builder
   SectionLabel(text: string) {
     Text(text)
-      .fontSize(14)
+      .fontSize(12)
       .fontWeight(FontWeight.Medium)
-      .fontColor(this.th().textSecondary)
+      .fontColor(this.th().textTertiary)
+      .letterSpacing(0.5)
       .width('100%')
-      .margin({ top: 22, bottom: 10 })
+      .margin({ top: 22, bottom: 10, left: 2 })
   }
 
   @Builder
   Templates() {
     Text('快速选择')
-      .fontSize(14)
+      .fontSize(12)
       .fontWeight(FontWeight.Medium)
-      .fontColor(this.th().textSecondary)
+      .fontColor(this.th().textTertiary)
+      .letterSpacing(0.5)
       .width('100%')
-      .margin({ top: 12, bottom: 10 })
+      .margin({ top: 12, bottom: 10, left: 2 })
     Scroll() {
       Row({ space: 10 }) {
         ForEach(HABIT_TEMPLATES, (t: HabitTemplate) => {
@@ -276,18 +278,21 @@ struct EditHabit {
   NameField() {
     Row() {
       Stack() {
-        Circle().width(52).height(52).fill(this.color + (this.themeDark ? '2E' : '1F'))
-        Text(this.emoji).fontSize(26)
+        Text(this.emoji).fontSize(24)
       }
+      .width(44)
+      .height(44)
+      .borderRadius(13)
+      .backgroundColor(this.color + (this.themeDark ? '2E' : '1F'))
       .margin({ right: 14 })
       TextInput({ text: this.name, placeholder: '习惯名称' })
-        .fontSize(18)
+        .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .fontColor(this.th().textPrimary)
         .placeholderColor(this.th().textTertiary)
         .backgroundColor('#00000000')
         .borderRadius(0)
-        .height(52)
+        .height(44)
         .padding({ left: 0, right: 0, top: 0, bottom: 0 })
         .maxLength(20)
         .layoutWeight(1)
@@ -297,7 +302,7 @@ struct EditHabit {
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
-    .padding(16)
+    .padding(13)
     .backgroundColor(this.th().surface)
     .borderRadius(18)
     .border({

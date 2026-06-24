@@ -4,11 +4,11 @@
  */
 @Component
 export struct AppIcon {
-  name: string = '';
-  color: string = '#000000';
-  iconSize: number = 24;
-  stroke: number = 2;
-  cutout: string = '#FFFFFF';
+  @Prop name: string = '';
+  @Prop color: string = '#000000';
+  @Prop iconSize: number = 24;
+  @Prop stroke: number = 2;
+  @Prop cutout: string = '#FFFFFF';
 
   // 按比例换算尺寸
   u(f: number): number {

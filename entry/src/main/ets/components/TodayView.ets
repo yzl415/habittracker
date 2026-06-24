@@ -55,8 +55,6 @@ export struct TodayView {
   @StorageProp('themeDark') themeDark: boolean = false;
   @State habits: Habit[] = [];
   @State showAll: boolean = false;
-  @State popId: string = '';       // 正在播放完成弹动的习惯 id
-  @State popScale: number = 1;     // 该习惯打卡控件的缩放
   private store: HabitStore = HabitStore.getInstance();
 
   th(): AppTheme {
@@ -110,7 +108,8 @@ export struct TodayView {
         out.push(new ListRow('header', 'h_' + sec.key, sec.key, null));
       }
       sec.habits.forEach((h: Habit) => {
-        const k: string = 'c_' + h.id + '_' + h.checkedDates.length + '_' + valueToday(h);
+        // key 只用 id：保持卡片节点稳定，使打卡时环形进度从旧值平滑过渡而非从 0 重建
+        const k: string = 'c_' + h.id;
         out.push(new ListRow('habit', k, sec.key, h));
       });
     });
@@ -147,36 +146,14 @@ export struct TodayView {
     return this.doneCount() / total;
   }
 
-  /** 完成时播放一次轻微弹动反馈 */
-  playPop(id: string): void {
-    this.popId = id;
-    this.popScale = 1;
-    animateTo({ duration: 130, curve: Curve.EaseOut }, () => {
-      this.popScale = 1.25;
-    });
-    setTimeout(() => {
-      animateTo({ duration: 180, curve: Curve.Friction }, () => {
-        this.popScale = 1;
-      });
-    }, 130);
-  }
-
   async toggle(h: Habit): Promise<void> {
-    const wasChecked: boolean = this.isCheckedToday(h);
     await this.store.toggleToday(h.id);
     this.reload();
-    if (!wasChecked) {
-      this.playPop(h.id);
-    }
   }
 
   async addOne(h: Habit): Promise<void> {
-    const wasChecked: boolean = this.isCheckedToday(h);
     await this.store.addValue(h.id, 1);
     this.reload();
-    if (!wasChecked && this.isCheckedToday(h)) {
-      this.playPop(h.id);
-    }
   }
 
   todayLabel(): string {
@@ -229,12 +206,12 @@ export struct TodayView {
       .height('100%')
 
       Button({ type: ButtonType.Circle }) {
-        AppIcon({ name: 'plus', color: this.th().accentText, iconSize: 26, stroke: 2.4 })
+        AppIcon({ name: 'plus', color: this.th().accentText, iconSize: 24, stroke: 2.4 })
       }
-      .width(58)
-      .height(58)
+      .width(52)
+      .height(52)
       .backgroundColor(this.th().accent)
-      .shadow({ radius: 18, color: this.th().accent + '55', offsetX: 0, offsetY: 8 })
+      .shadow({ radius: 16, color: this.th().accent + '55', offsetX: 0, offsetY: 8 })
       .margin({ right: 20, bottom: 22 })
       .onClick(() => {
         router.pushUrl({ url: 'pages/EditHabit' });
@@ -248,7 +225,8 @@ export struct TodayView {
   Header() {
     Column() {
       Text(this.todayLabel())
-        .fontSize(13)
+        .fontSize(12)
+        .fontWeight(FontWeight.Medium)
         .fontColor(this.th().textSecondary)
         .letterSpacing(0.3)
       Text('今天')
@@ -277,19 +255,21 @@ export struct TodayView {
         Column() {
           Text(c.weekLabel)
             .fontSize(12)
-            .fontColor(this.th().textTertiary)
+            .fontWeight(c.isToday ? FontWeight.Medium : FontWeight.Normal)
+            .fontColor(c.isToday ? this.th().accent : this.th().textTertiary)
           Text(c.dayNum)
             .fontSize(15)
             .fontWeight(c.isToday ? FontWeight.Bold : FontWeight.Medium)
             .fontColor(c.isToday ? this.th().accentText : this.th().textSecondary)
-            .width(30)
+            .width('100%')
             .height(30)
-            .borderRadius(15)
+            .borderRadius(10)
             .textAlign(TextAlign.Center)
             .backgroundColor(c.isToday ? this.th().accent : '#00000000')
             .margin({ top: 6 })
         }
         .layoutWeight(1)
+        .padding({ left: 3, right: 3 })
       }, (c: DayCell) => c.dateStr)
     }
     .width('100%')
@@ -301,22 +281,23 @@ export struct TodayView {
     Row() {
       Stack() {
         Progress({ value: this.doneCount(), total: this.dueHabits().length, type: ProgressType.Ring })
-          .width(60)
-          .height(60)
+          .width(72)
+          .height(72)
           .color(this.remainCount() <= 0 ? this.th().success : this.th().accent)
-          .style({ strokeWidth: 6 })
+          .style({ strokeWidth: 7 })
           .backgroundColor(this.th().track)
         Column() {
           Text(this.doneCount() + '/' + this.dueHabits().length)
-            .fontSize(15)
+            .fontSize(17)
             .fontWeight(FontWeight.Bold)
             .fontColor(this.th().textPrimary)
           Text('已完成')
             .fontSize(10)
             .fontColor(this.th().textTertiary)
+            .margin({ top: 2 })
         }
       }
-      .margin({ right: 16 })
+      .margin({ right: 18 })
 
       Column() {
         Text(this.remainCount() <= 0 ? '今天全部完成' : '今天还差 ' + this.remainCount() + ' 个')
@@ -333,9 +314,9 @@ export struct TodayView {
       .layoutWeight(1)
     }
     .width('100%')
-    .padding(16)
+    .padding(18)
     .backgroundColor(this.th().surface)
-    .borderRadius(20)
+    .borderRadius(22)
     .border({ width: this.themeDark ? 1 : 0, color: this.th().cardBorder })
     .shadow({ radius: this.th().shadowRadius, color: this.th().shadowColor, offsetX: 0, offsetY: 3 })
     .margin({ top: 16 })
@@ -362,10 +343,10 @@ export struct TodayView {
 
   @Builder
   Body() {
-    List({ space: 11 }) {
-      ForEach(this.rows(), (row: ListRow) => {
-        if (row.kind === 'header') {
-          ListItem() {
+    Scroll() {
+      Column({ space: 11 }) {
+        ForEach(this.rows(), (row: ListRow) => {
+          if (row.kind === 'header') {
             Row() {
               Text(timeOfDayIcon(row.sectionKey)).fontSize(14).margin({ right: 5 })
               Text(timeOfDayLabel(row.sectionKey))
@@ -376,13 +357,14 @@ export struct TodayView {
             }
             .width('100%')
             .padding({ top: 8, bottom: 2, left: 4 })
-          }
-        } else if (row.kind === 'habit' && row.habit !== null) {
-          ListItem() {
-            this.HabitCard(row.habit)
-          }
-        } else {
-          ListItem() {
+          } else if (row.kind === 'habit' && row.habit !== null) {
+            HabitCardItem({
+              habit: row.habit,
+              themeDark: this.themeDark,
+              onToggle: (h: Habit): void => { this.toggle(h); },
+              onAddOne: (h: Habit): void => { this.addOne(h); }
+            })
+          } else {
             Row() {
               Text(this.showAll ? '只看今天' : '查看全部习惯')
                 .fontSize(14)
@@ -393,112 +375,163 @@ export struct TodayView {
             .padding({ top: 10, bottom: 10 })
             .onClick(() => this.showAll = !this.showAll)
           }
-        }
-      }, (row: ListRow) => row.key)
+        }, (row: ListRow) => row.key)
+      }
+      .width('100%')
+      .padding({ left: 22, right: 22, top: 6, bottom: 120 })
     }
     .layoutWeight(1)
     .width('100%')
-    .padding({ left: 22, right: 22, top: 6, bottom: 120 })
+    .align(Alignment.Top)
     .scrollBar(BarState.Off)
   }
+}
 
-  @Builder
-  HabitCard(h: Habit) {
+/**
+ * 习惯卡片：独立 @Component + @ObjectLink 观测单个 Habit，
+ * 打卡时只更新本卡片节点（环形进度原地从旧值平滑过渡，而非整卡重建从 0 起跳）。
+ */
+@Component
+struct HabitCardItem {
+  @ObjectLink habit: Habit;
+  @Prop themeDark: boolean;
+  onToggle: (h: Habit) => void = () => {};
+  onAddOne: (h: Habit) => void = () => {};
+  @State popScale: number = 1;
+
+  th(): AppTheme {
+    return getTheme(this.themeDark);
+  }
+
+  isCheckedToday(): boolean {
+    return this.habit.checkedDates.indexOf(todayStr()) >= 0;
+  }
+
+  /** 完成时播放一次轻微弹动反馈 */
+  playPop(): void {
+    this.popScale = 1;
+    animateTo({ duration: 130, curve: Curve.EaseOut }, () => {
+      this.popScale = 1.25;
+    });
+    setTimeout(() => {
+      animateTo({ duration: 180, curve: Curve.Friction }, () => {
+        this.popScale = 1;
+      });
+    }, 130);
+  }
+
+  build() {
     Row() {
       Row() {
         Stack() {
-          Circle().width(44).height(44).fill(h.color + (this.themeDark ? '2E' : '1F'))
-          Text(h.emoji).fontSize(21)
+          Text(this.habit.emoji).fontSize(21)
         }
-        .margin({ right: 14 })
+        .width(42)
+        .height(42)
+        .borderRadius(13)
+        .backgroundColor(this.habit.color + (this.themeDark ? '2E' : '1F'))
+        .margin({ right: 13 })
 
         Column() {
-          Text(h.name)
-            .fontSize(16.5)
+          Text(this.habit.name)
+            .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.th().textPrimary)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Row() {
-            if (isQuantifiable(h)) {
-              Text(valueToday(h) + ' / ' + h.targetCount + (h.unit.length > 0 ? ' ' + h.unit : ''))
-                .fontSize(13)
-                .fontColor(this.isCheckedToday(h) ? this.th().success : h.color)
+            if (isQuantifiable(this.habit)) {
+              Text(valueToday(this.habit) + ' / ' + this.habit.targetCount +
+                (this.habit.unit.length > 0 ? ' ' + this.habit.unit : ''))
+                .fontSize(12)
+                .fontColor(this.isCheckedToday() ? this.th().success : this.habit.color)
             } else {
-              Text('已坚持 ' + currentStreak(h) + ' 天')
-                .fontSize(13)
+              Text('已坚持 ' + currentStreak(this.habit) + ' 天')
+                .fontSize(12)
                 .fontColor(this.th().textTertiary)
             }
-            Text('  ·  ' + frequencyLabel(h))
-              .fontSize(13)
+            Text('  ·  ' + frequencyLabel(this.habit))
+              .fontSize(12)
               .fontColor(this.th().textTertiary)
           }
-          .margin({ top: 4 })
+          .margin({ top: 2 })
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
       }
       .layoutWeight(1)
       .onClick(() => {
-        router.pushUrl({ url: 'pages/HabitDetail', params: { id: h.id } });
+        router.pushUrl({ url: 'pages/HabitDetail', params: { id: this.habit.id } });
       })
 
-      if (isQuantifiable(h)) {
-        this.QuantControl(h)
+      if (isQuantifiable(this.habit)) {
+        this.QuantControl()
       } else {
-        this.CheckButton(h)
+        this.CheckButton()
       }
     }
     .width('100%')
-    .padding(15)
+    .padding({ top: 11, bottom: 11, left: 13, right: 13 })
     .backgroundColor(this.th().surface)
-    .borderRadius(20)
+    .borderRadius(16)
     .border({ width: this.themeDark ? 1 : 0, color: this.th().cardBorder })
     .shadow({ radius: this.th().shadowRadius, color: this.th().shadowColor, offsetX: 0, offsetY: 3 })
-    .opacity(this.isCheckedToday(h) ? 0.62 : 1)
+    .opacity(this.isCheckedToday() ? 0.62 : 1)
   }
 
   @Builder
-  CheckButton(h: Habit) {
+  CheckButton() {
     Stack() {
       Circle()
-        .width(34)
-        .height(34)
-        .fill(this.isCheckedToday(h) ? h.color : '#00000000')
-        .stroke(this.isCheckedToday(h) ? h.color : this.th().divider)
+        .width(32)
+        .height(32)
+        .fill(this.isCheckedToday() ? this.habit.color : '#00000000')
+        .stroke(this.isCheckedToday() ? this.habit.color : this.th().divider)
         .strokeWidth(2)
-      if (this.isCheckedToday(h)) {
-        Text('✓').fontSize(18).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+      if (this.isCheckedToday()) {
+        Text('✓').fontSize(16).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
       }
     }
     .margin({ left: 12 })
-    .scale({ x: this.popId === h.id ? this.popScale : 1, y: this.popId === h.id ? this.popScale : 1 })
+    .scale({ x: this.popScale, y: this.popScale })
     .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.85 })
-    .onClick(() => this.toggle(h))
+    .onClick(() => {
+      const was: boolean = this.isCheckedToday();
+      this.onToggle(this.habit);
+      if (!was) {
+        this.playPop();
+      }
+    })
   }
 
   @Builder
-  QuantControl(h: Habit) {
+  QuantControl() {
     Stack() {
-      Progress({ value: valueToday(h), total: h.targetCount, type: ProgressType.Ring })
-        .width(40)
-        .height(40)
-        .color(this.isCheckedToday(h) ? h.color : h.color)
+      Progress({ value: valueToday(this.habit), total: this.habit.targetCount, type: ProgressType.Ring })
+        .width(34)
+        .height(34)
+        .color(this.habit.color)
         .style({ strokeWidth: 3 })
         .backgroundColor(this.th().track)
-      if (this.isCheckedToday(h)) {
-        Circle().width(40).height(40).fill(h.color)
-        Text('✓').fontSize(18).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+      if (this.isCheckedToday()) {
+        Circle().width(34).height(34).fill(this.habit.color)
+        Text('✓').fontSize(16).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
       } else {
-        Text(valueToday(h) + '/' + h.targetCount)
-          .fontSize(h.targetCount > 99 ? 9 : 11)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(h.color)
+        Text(valueToday(this.habit) + '/' + this.habit.targetCount)
+          .fontSize(this.habit.targetCount > 99 ? 8 : 9)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.habit.color)
       }
     }
     .margin({ left: 12 })
-    .scale({ x: this.popId === h.id ? this.popScale : 1, y: this.popId === h.id ? this.popScale : 1 })
+    .scale({ x: this.popScale, y: this.popScale })
     .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.85 })
-    .onClick(() => this.addOne(h))
+    .onClick(() => {
+      const was: boolean = this.isCheckedToday();
+      this.onAddOne(this.habit);
+      if (!was && this.isCheckedToday()) {
+        this.playPop();
+      }
+    })
   }
 }

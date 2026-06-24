@@ -9,6 +9,7 @@ export type FrequencyType = 'daily' | 'weekly';
 export type TimeOfDay = 'anytime' | 'morning' | 'afternoon' | 'evening';
 
 /** 单个习惯 */
+@Observed
 export class Habit {
   id: string;
   name: string;
