@@ -3,6 +3,9 @@
  * 组件通过 @StorageProp('themeDark') 订阅，调用 getTheme(isDark) 取色。
  */
 
+import { common, ConfigurationConstant } from '@kit.AbilityKit';
+import type { ThemeMode } from './HabitStore';
+
 export class AppTheme {
   isDark: boolean;
   bg: string;            // 页面背景
@@ -103,6 +106,41 @@ export const DARK_THEME: AppTheme = new AppTheme(
 /** 根据是否暗色返回对应主题 */
 export function getTheme(isDark: boolean): AppTheme {
   return isDark ? DARK_THEME : LIGHT_THEME;
+}
+
+/** 系统当前是否为深色模式 */
+export function systemIsDark(context: common.UIAbilityContext): boolean {
+  try {
+    return context.config.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
+  } catch (e) {
+    return false;
+  }
+}
+
+/** 由主题模式 + 系统色彩解析出最终是否深色 */
+export function resolveDark(mode: ThemeMode, sysDark: boolean): boolean {
+  if (mode === 'dark') {
+    return true;
+  }
+  if (mode === 'light') {
+    return false;
+  }
+  return sysDark;
+}
+
+/**
+ * 把窗口色彩模式钉死成 App 实际渲染的主题，杜绝系统自动反相导致的“浅字浅底”。
+ * dark=true → COLOR_MODE_DARK，dark=false → COLOR_MODE_LIGHT。
+ */
+export function applyWindowColorMode(context: common.UIAbilityContext, dark: boolean): void {
+  try {
+    const mode: ConfigurationConstant.ColorMode = dark
+      ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+      : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT;
+    context.getApplicationContext().setColorMode(mode);
+  } catch (e) {
+    // 预览器等环境可能不支持，忽略
+  }
 }
 
 /** 在某色上叠加透明度后缀（hex 8 位），alpha 为 00~FF 的两位十六进制 */

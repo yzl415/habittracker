@@ -52,6 +52,7 @@ class ListRow {
 @Component
 export struct TodayView {
   @Prop @Watch('onTick') tick: number;
+  @StorageProp('dataVersion') @Watch('onTick') dataVersion: number = 0;
   @StorageProp('themeDark') themeDark: boolean = false;
   @State habits: Habit[] = [];
   @State showAll: boolean = false;

@@ -23,6 +23,7 @@ class DayStat {
 @Component
 export struct StatsView {
   @Prop @Watch('onTick') tick: number;
+  @StorageProp('dataVersion') @Watch('onTick') dataVersion: number = 0;
   @StorageProp('themeDark') themeDark: boolean = false;
   @State habits: Habit[] = [];
   private store: HabitStore = HabitStore.getInstance();
@@ -162,13 +163,41 @@ export struct StatsView {
     .justifyContent(FlexAlign.Center)
   }
 
+  /** 概览卡强调色：在 @Builder 体内实时解析，避免按值传参在主题切换后不刷新 */
+  statAccent(kind: string): string {
+    if (kind === 'rate') {
+      return this.th().accent;
+    }
+    if (kind === 'active') {
+      return this.th().success;
+    }
+    if (kind === 'total') {
+      return this.themeDark ? '#FB923C' : '#FF7B54';
+    }
+    return this.themeDark ? '#C084FC' : '#A855F7';
+  }
+
+  /** 概览卡数值：在 @Builder 体内实时计算，避免按值传参在数据变化后不刷新 */
+  statValue(kind: string): string {
+    if (kind === 'rate') {
+      return this.todayRate() + '%';
+    }
+    if (kind === 'active') {
+      return this.habits.length.toString();
+    }
+    if (kind === 'total') {
+      return this.totalCheckins().toString();
+    }
+    return this.bestStreak() + ' 天';
+  }
+
   @Builder
-  StatCard(value: string, label: string, accent: string) {
+  StatCard(label: string, kind: string) {
     Column() {
-      Text(value)
+      Text(this.statValue(kind))
         .fontSize(26)
         .fontWeight(FontWeight.Bold)
-        .fontColor(accent)
+        .fontColor(this.statAccent(kind))
       Text(label)
         .fontSize(12)
         .fontColor(this.th().textSecondary)
@@ -185,15 +214,15 @@ export struct StatsView {
   @Builder
   OverviewGrid() {
     Row({ space: 12 }) {
-      this.StatCard(this.todayRate() + '%', '今日完成', this.th().accent)
-      this.StatCard(this.habits.length.toString(), '活跃习惯', this.th().success)
+      this.StatCard('今日完成', 'rate')
+      this.StatCard('活跃习惯', 'active')
     }
     .width('100%')
     .margin({ top: 4 })
 
     Row({ space: 12 }) {
-      this.StatCard(this.totalCheckins().toString(), '累计打卡', this.themeDark ? '#FB923C' : '#FF7B54')
-      this.StatCard(this.bestStreak() + ' 天', '最佳连续', this.themeDark ? '#C084FC' : '#A855F7')
+      this.StatCard('累计打卡', 'total')
+      this.StatCard('最佳连续', 'best')
     }
     .width('100%')
     .margin({ top: 12 })

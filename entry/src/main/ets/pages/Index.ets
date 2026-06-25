@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { router } from '@kit.ArkUI';
 import { HabitStore } from '../model/HabitStore';
-import { getTheme, AppTheme } from '../model/Theme';
+import { getTheme, AppTheme, resolveDark, systemIsDark, applyWindowColorMode } from '../model/Theme';
 import { TodayView } from '../components/TodayView';
 import { StatsView } from '../components/StatsView';
 import { MineView } from '../components/MineView';
@@ -17,6 +17,7 @@ struct Index {
   @State showWelcome: boolean = false;
   @StorageProp('themeDark') themeDark: boolean = false;
   private store: HabitStore = HabitStore.getInstance();
+  private tabsController: TabsController = new TabsController();
 
   th(): AppTheme {
     return getTheme(this.themeDark);
@@ -25,11 +26,25 @@ struct Index {
   async aboutToAppear(): Promise<void> {
     const ctx = getContext(this) as common.UIAbilityContext;
     await this.store.init(ctx);
-    AppStorage.setOrCreate('themeDark', this.store.themeDark);
+    // 由主题模式 + 系统色彩解析出最终深浅，并把窗口色彩模式钉死成同一值
+    const dark: boolean = resolveDark(this.store.themeMode, systemIsDark(ctx));
+    AppStorage.setOrCreate('themeDark', dark);
+    applyWindowColorMode(ctx, dark);
     this.showPrivacy = !this.store.privacyAgreed;
     this.showWelcome = this.store.privacyAgreed && !this.store.onboarded;
     this.loaded = true;
     this.tick++;
+  }
+
+  /** 系统深浅色变化时（仅 mode=system）实时跟随 */
+  onSysColorModeChange(): void {
+    if (this.store.themeMode !== 'system') {
+      return;
+    }
+    const ctx = getContext(this) as common.UIAbilityContext;
+    const dark: boolean = systemIsDark(ctx);
+    AppStorage.setOrCreate('themeDark', dark);
+    applyWindowColorMode(ctx, dark);
   }
 
   async agreePrivacy(): Promise<void> {
@@ -49,6 +64,7 @@ struct Index {
   }
 
   onPageShow(): void {
+    this.onSysColorModeChange();
     if (this.loaded) {
       this.tick++;
     }
@@ -76,29 +92,34 @@ struct Index {
 
   build() {
     Stack() {
-      Tabs({ barPosition: BarPosition.End, index: this.currentIndex }) {
+      Tabs({ barPosition: BarPosition.End, controller: this.tabsController }) {
         TabContent() {
           TodayView({ tick: this.tick })
         }
         .tabBar(this.TabItem(0, 'today', '今日'))
+        .onWillShow(() => this.tick++)
 
         TabContent() {
           StatsView({ tick: this.tick })
         }
         .tabBar(this.TabItem(1, 'stats', '统计'))
+        .onWillShow(() => this.tick++)
 
         TabContent() {
           MineView({ tick: this.tick })
         }
         .tabBar(this.TabItem(2, 'mine', '我的'))
+        .onWillShow(() => this.tick++)
       }
       .barHeight(66)
       .scrollable(false)
       .barBackgroundColor(this.th().navBar)
       .divider({ strokeWidth: 0.5, color: this.th().divider })
       .onChange((index: number) => {
+        // 仅记录当前页用于 TabItem 高亮。数据刷新交给每个 TabContent 的
+        // onWillShow（切回时必触发且组件已激活，reload 一定生效）；
+        // 不在此处 tick++，避免切换起始时机打不到非激活子树。
         this.currentIndex = index;
-        this.tick++;
       })
       .backgroundColor(this.th().bg)
       .width('100%')

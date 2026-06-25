@@ -1,11 +1,25 @@
 {
   "app": {
-    "signingConfigs": [],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "storeFile": "/Users/joey/DevecostudioProjects/habittracker/signature/release.p12",
+          "storePassword": "00000019B2C277732518E78386F9FA35A3952495EE78AF6B981AA5D2EE62419F229A532BBC2ED5F16A",
+          "keyAlias": "release",
+          "keyPassword": "000000196C9246F465F4084D3D13C2ED5B92C17EB3EA3EAB872CFB9FAFD840E65E030C2999B7D9CB26",
+          "signAlg": "SHA256withECDSA",
+          "profile": "/Users/joey/DevecostudioProjects/habittracker/signature/release.p7b",
+          "certpath": "/Users/joey/DevecostudioProjects/habittracker/signature/release.cer"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",
         "signingConfig": "default",
-        "compatibleSdkVersion": "6.1.0(23)",
+        "compatibleSdkVersion": "6.0.0(20)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {

@@ -338,14 +338,27 @@ struct HabitDetail {
     .margin({ top: 18 })
   }
 
+  /** 详情统计数值：在 @Builder 体内实时计算，避免按值传参在打卡后不刷新 */
+  detailStat(kind: string): string {
+    const h: Habit = this.habit as Habit;
+    if (kind === 'longest') {
+      return longestStreak(h).toString();
+    }
+    if (kind === 'total') {
+      return h.checkedDates.length.toString();
+    }
+    return completionRate(h, 30) + '%';
+  }
+
   @Builder
-  StatItem(label: string, value: string, unit: string, accent: string) {
+  StatItem(label: string, kind: string, unit: string, useHabitColor: boolean) {
     Column() {
       Text() {
-        Span(value)
+        // 数值与颜色均在 @Builder 体内实时读取，避免按值传参在打卡/主题变化后不刷新
+        Span(this.detailStat(kind))
           .fontSize(22)
           .fontWeight(FontWeight.Bold)
-          .fontColor(accent)
+          .fontColor(useHabitColor ? (this.habit as Habit).color : this.th().textPrimary)
         if (unit.length > 0) {
           Span(' ' + unit)
             .fontSize(14)
@@ -363,11 +376,11 @@ struct HabitDetail {
   @Builder
   StatsRow() {
     Row() {
-      this.StatItem('最长连续', longestStreak(this.habit as Habit).toString(), '天', this.th().textPrimary)
+      this.StatItem('最长连续', 'longest', '天', false)
       Divider().vertical(true).height(32).color(this.th().divider)
-      this.StatItem('累计打卡', (this.habit as Habit).checkedDates.length.toString(), '次', this.th().textPrimary)
+      this.StatItem('累计打卡', 'total', '次', false)
       Divider().vertical(true).height(32).color(this.th().divider)
-      this.StatItem('30天完成', completionRate(this.habit as Habit, 30) + '%', '', (this.habit as Habit).color)
+      this.StatItem('30天完成', 'rate30', '', true)
     }
     .width('100%')
     .padding({ top: 18, bottom: 18 })

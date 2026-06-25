@@ -8,15 +8,20 @@ import { Habit, FrequencyType, TimeOfDay, todayStr } from '../model/Habit';
 
 const STORE_NAME: string = 'habit_store';
 const KEY_HABITS: string = 'habits';
-const KEY_THEME_DARK: string = 'theme_dark';
+const KEY_THEME_DARK: string = 'theme_dark';   // 旧版布尔偏好，仅用于迁移
+const KEY_THEME_MODE: string = 'theme_mode';   // 新版：'system' | 'light' | 'dark'
 const KEY_PRIVACY_AGREED: string = 'privacy_agreed';
 const KEY_ONBOARDED: string = 'onboarded';
+
+/** 主题模式：跟随系统 / 强制浅色 / 强制深色 */
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 export class HabitStore {
   private static instance: HabitStore | null = null;
   private store: preferences.Preferences | null = null;
   habits: Habit[] = [];
-  themeDark: boolean = false;
+  themeDark: boolean = false;       // 旧字段：保留兼容（= themeMode==='dark'）
+  themeMode: ThemeMode = 'system';  // 主题模式偏好
   privacyAgreed: boolean = false;
   onboarded: boolean = false;
 
@@ -36,7 +41,17 @@ export class HabitStore {
       this.store = await preferences.getPreferences(context, STORE_NAME);
       const raw: string = await this.store.get(KEY_HABITS, '[]') as string;
       this.habits = this.parse(raw);
-      this.themeDark = await this.store.get(KEY_THEME_DARK, false) as boolean;
+      // 主题：优先读新版 theme_mode；缺失时从旧版 theme_dark 迁移
+      const savedMode: string = await this.store.get(KEY_THEME_MODE, '') as string;
+      if (savedMode === 'system' || savedMode === 'light' || savedMode === 'dark') {
+        this.themeMode = savedMode as ThemeMode;
+      } else {
+        const legacyDark: boolean = await this.store.get(KEY_THEME_DARK, false) as boolean;
+        this.themeMode = legacyDark ? 'dark' : 'system';
+        await this.store.put(KEY_THEME_MODE, this.themeMode);
+        await this.store.flush();
+      }
+      this.themeDark = this.themeMode === 'dark';
       this.privacyAgreed = await this.store.get(KEY_PRIVACY_AGREED, false) as boolean;
       this.onboarded = await this.store.get(KEY_ONBOARDED, false) as boolean;
     } catch (e) {
@@ -78,11 +93,19 @@ export class HabitStore {
 
   /** 持久化当前 habits 到磁盘 */
   private async persist(): Promise<void> {
+    // 数据已变更：广播版本号，让所有订阅 'dataVersion' 的视图无需重启即时刷新
+    this.bumpVersion();
     if (this.store === null) {
       return;
     }
     await this.store.put(KEY_HABITS, JSON.stringify(this.habits));
     await this.store.flush();
+  }
+
+  /** 递增全局数据版本号（AppStorage 广播），触发各页 @StorageProp('dataVersion') 重载 */
+  private bumpVersion(): void {
+    const v: number = AppStorage.get<number>('dataVersion') ?? 0;
+    AppStorage.setOrCreate('dataVersion', v + 1);
   }
 
   getById(id: string): Habit | undefined {
@@ -215,13 +238,14 @@ export class HabitStore {
     await this.persist();
   }
 
-  /** 保存主题偏好 */
-  async setThemeDark(dark: boolean): Promise<void> {
-    this.themeDark = dark;
+  /** 保存主题模式偏好（system / light / dark） */
+  async setThemeMode(mode: ThemeMode): Promise<void> {
+    this.themeMode = mode;
+    this.themeDark = mode === 'dark';
     if (this.store === null) {
       return;
     }
-    await this.store.put(KEY_THEME_DARK, dark);
+    await this.store.put(KEY_THEME_MODE, mode);
     await this.store.flush();
   }
 
