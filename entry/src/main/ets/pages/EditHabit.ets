@@ -1,5 +1,6 @@
 import { router } from '@kit.ArkUI';
 import { promptAction } from '@kit.ArkUI';
+import { common } from '@kit.AbilityKit';
 import { HabitStore } from '../model/HabitStore';
 import { NotificationService } from '../model/NotificationService';
 import { Habit, HABIT_COLORS, HABIT_EMOJIS, WEEK_SHORT, FrequencyType, TimeOfDay,
@@ -155,6 +156,11 @@ struct EditHabit {
           this.reminderEnabled, this.reminderTime, -1, false, 0,
           this.effectiveTarget(), this.isCountMode ? this.unit.trim() : '', {}, this.timeOfDay);
         await this.store.add(habit);
+      }
+      // 开启提醒前先申请通知授权，否则代理提醒到时不会在通知中心展示
+      if (habit.reminderEnabled) {
+        const ctx = getContext(this) as common.UIAbilityContext;
+        await NotificationService.requestEnable(ctx);
       }
       const newId: number = await NotificationService.schedule(habit);
       habit.reminderId = newId;

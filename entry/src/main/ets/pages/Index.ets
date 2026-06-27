@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit';
-import { router } from '@kit.ArkUI';
 import { HabitStore } from '../model/HabitStore';
 import { getTheme, AppTheme, resolveDark, systemIsDark, applyWindowColorMode } from '../model/Theme';
 import { TodayView } from '../components/TodayView';
@@ -13,7 +12,6 @@ struct Index {
   @State currentIndex: number = 0;
   @State tick: number = 0;
   @State loaded: boolean = false;
-  @State showPrivacy: boolean = false;
   @State showWelcome: boolean = false;
   @StorageProp('themeDark') themeDark: boolean = false;
   private store: HabitStore = HabitStore.getInstance();
@@ -30,8 +28,9 @@ struct Index {
     const dark: boolean = resolveDark(this.store.themeMode, systemIsDark(ctx));
     AppStorage.setOrCreate('themeDark', dark);
     applyWindowColorMode(ctx, dark);
-    this.showPrivacy = !this.store.privacyAgreed;
-    this.showWelcome = this.store.privacyAgreed && !this.store.onboarded;
+    // 隐私声明已接入华为平台标准化隐私托管服务（系统自动弹出），不再自建隐私弹窗，
+    // 避免首次打开出现两个隐私弹窗。这里只控制功能介绍欢迎页。
+    this.showWelcome = !this.store.onboarded;
     this.loaded = true;
     this.tick++;
   }
@@ -47,20 +46,9 @@ struct Index {
     applyWindowColorMode(ctx, dark);
   }
 
-  async agreePrivacy(): Promise<void> {
-    await this.store.setPrivacyAgreed();
-    this.showPrivacy = false;
-    this.showWelcome = !this.store.onboarded;
-  }
-
   async finishWelcome(): Promise<void> {
     await this.store.setOnboarded();
     this.showWelcome = false;
-  }
-
-  exitApp(): void {
-    const ctx = getContext(this) as common.UIAbilityContext;
-    ctx.terminateSelf();
   }
 
   onPageShow(): void {
@@ -125,10 +113,7 @@ struct Index {
       .width('100%')
       .height('100%')
 
-      if (this.showPrivacy) {
-        this.PrivacyGate()
-      }
-      if (this.showWelcome && !this.showPrivacy) {
+      if (this.showWelcome) {
         this.WelcomeScreen()
       }
     }
@@ -204,54 +189,5 @@ struct Index {
         .layoutWeight(1)
     }
     .width('100%')
-  }
-
-  @Builder
-  PrivacyGate() {
-    Column() {
-      Column() {
-        Text('欢迎使用萌芽打卡')
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.th().textPrimary)
-          .margin({ top: 4, bottom: 14 })
-        Text() {
-          Span('在使用前，请阅读并同意')
-          Span('《隐私政策》')
-            .fontColor(this.th().accent)
-            .onClick(() => router.pushUrl({ url: 'pages/Privacy' }))
-          Span('。我们高度重视你的隐私：所有习惯数据仅保存在你的设备本地，不收集、不上传、无广告、无第三方共享。')
-        }
-        .fontSize(14)
-        .lineHeight(23)
-        .textAlign(TextAlign.Start)
-        .width('100%')
-
-        Button('同意并开始使用')
-          .width('100%')
-          .height(48)
-          .fontSize(16)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#FFFFFF')
-          .backgroundColor(this.th().accent)
-          .borderRadius(14)
-          .margin({ top: 22 })
-          .onClick(() => this.agreePrivacy())
-        Text('不同意并退出')
-          .fontSize(14)
-          .fontColor(this.th().textTertiary)
-          .margin({ top: 14, bottom: 4 })
-          .onClick(() => this.exitApp())
-      }
-      .width('86%')
-      .padding(24)
-      .backgroundColor(this.th().surface)
-      .borderRadius(22)
-      .alignItems(HorizontalAlign.Center)
-    }
-    .width('100%')
-    .height('100%')
-    .backgroundColor('#99000000')
-    .justifyContent(FlexAlign.Center)
   }
 }
