@@ -7,6 +7,7 @@ import { notificationManager } from '@kit.NotificationKit';
 import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Habit } from '../model/Habit';
+import { buildReminderAlarm, ReminderAlarmPlan, toReminderRequest } from './ReminderPlanner';
 
 export class NotificationService {
   /** 请求通知授权 */
@@ -21,45 +22,28 @@ export class NotificationService {
     }
   }
 
-  /** 把 "HH:mm" 解析成 [hour, minute] */
-  private static parseTime(time: string): number[] {
-    const parts: string[] = time.split(':');
-    return [Number(parts[0]), Number(parts[1])];
-  }
-
-  /**
-   * 为习惯创建/更新提醒。返回系统分配的 reminderId（失败返回 -1）。
-   * weekly 习惯按选中的星期重复；daily 习惯每天重复。
-   */
-  static async schedule(habit: Habit): Promise<number> {
-    // 先撤销旧的，避免重复
+  static async ensureNotificationAndSchedule(habit: Habit, context: common.UIAbilityContext): Promise<number> {
+    if (!habit.reminderEnabled) {
+      if (habit.reminderId >= 0) {
+        await NotificationService.cancel(habit.reminderId);
+      }
+      return -1;
+    }
+    const hasPermission: boolean = await NotificationService.requestEnable(context);
+    if (!hasPermission) {
+      return -1;
+    }
+    // 先拿到权限，再替换旧提醒，避免用户拒绝权限时误删原有提醒
     if (habit.reminderId >= 0) {
       await NotificationService.cancel(habit.reminderId);
     }
-    if (!habit.reminderEnabled) {
-      return -1;
-    }
-    const hm: number[] = NotificationService.parseTime(habit.reminderTime);
-    // daysOfWeek 中 1=周一 ... 7=周日（reminderAgentManager 约定）
-    let daysOfWeek: number[] = [];
-    if (habit.frequency === 'weekly' && habit.weekdays.length > 0) {
-      daysOfWeek = habit.weekdays.map((d: number) => d === 0 ? 7 : d);
-    } else {
-      daysOfWeek = [1, 2, 3, 4, 5, 6, 7];
-    }
-    const reminder: reminderAgentManager.ReminderRequestAlarm = {
-      reminderType: reminderAgentManager.ReminderType.REMINDER_TYPE_ALARM,
-      hour: hm[0],
-      minute: hm[1],
-      daysOfWeek: daysOfWeek,
-      title: habit.emoji + ' ' + habit.name,
-      content: '别忘了今天的习惯打卡哦',
-      notificationId: Math.floor(Math.random() * 1000000),
-      snoozeTimes: 0,
-      ringDuration: 0,
-      actionButton: [],
-      wantAgent: { pkgName: '', abilityName: '' }
+    const notificationId: number = Math.floor(Math.random() * 1000000);
+    const plan: ReminderAlarmPlan = buildReminderAlarm(habit, notificationId);
+    plan.wantAgent = {
+      pkgName: context.abilityInfo.bundleName,
+      abilityName: context.abilityInfo.name
     };
+    const reminder: reminderAgentManager.ReminderRequestAlarm = toReminderRequest(plan);
     try {
       const id: number = await reminderAgentManager.publishReminder(reminder);
       return id;
@@ -68,6 +52,14 @@ export class NotificationService {
       console.warn(`publishReminder failed: ${err.code} ${err.message}`);
       return -1;
     }
+  }
+
+  /**
+   * 为习惯创建/更新提醒。返回系统分配的 reminderId（失败返回 -1）。
+   * weekly 习惯按选中的星期重复；daily 习惯每天重复。
+   */
+  static async schedule(habit: Habit, context: common.UIAbilityContext): Promise<number> {
+    return await NotificationService.ensureNotificationAndSchedule(habit, context);
   }
 
   /** 取消提醒 */

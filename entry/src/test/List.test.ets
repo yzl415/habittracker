@@ -1,1 +1,5 @@
-// 测试占位（已移除 hypium 依赖）
+import localUnitTest from './LocalUnit.test';
+
+export default function testsuite() {
+  localUnitTest();
+}

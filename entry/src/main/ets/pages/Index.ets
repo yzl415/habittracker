@@ -12,7 +12,6 @@ struct Index {
   @State currentIndex: number = 0;
   @State tick: number = 0;
   @State loaded: boolean = false;
-  @State showWelcome: boolean = false;
   @StorageProp('themeDark') themeDark: boolean = false;
   private store: HabitStore = HabitStore.getInstance();
   private tabsController: TabsController = new TabsController();
@@ -28,9 +27,6 @@ struct Index {
     const dark: boolean = resolveDark(this.store.themeMode, systemIsDark(ctx));
     AppStorage.setOrCreate('themeDark', dark);
     applyWindowColorMode(ctx, dark);
-    // 隐私声明已接入华为平台标准化隐私托管服务（系统自动弹出），不再自建隐私弹窗，
-    // 避免首次打开出现两个隐私弹窗。这里只控制功能介绍欢迎页。
-    this.showWelcome = !this.store.onboarded;
     this.loaded = true;
     this.tick++;
   }
@@ -44,11 +40,6 @@ struct Index {
     const dark: boolean = systemIsDark(ctx);
     AppStorage.setOrCreate('themeDark', dark);
     applyWindowColorMode(ctx, dark);
-  }
-
-  async finishWelcome(): Promise<void> {
-    await this.store.setOnboarded();
-    this.showWelcome = false;
   }
 
   onPageShow(): void {
@@ -112,82 +103,8 @@ struct Index {
       .backgroundColor(this.th().bg)
       .width('100%')
       .height('100%')
-
-      if (this.showWelcome) {
-        this.WelcomeScreen()
-      }
     }
     .width('100%')
     .height('100%')
-  }
-
-  @Builder
-  WelcomeScreen() {
-    Column() {
-      Blank().layoutWeight(1)
-      // App 图标（渐变圆角方 + 对勾）
-      Stack({ alignContent: Alignment.Center }) {
-        Column()
-          .width(96)
-          .height(96)
-          .borderRadius(24)
-          .linearGradient({ angle: 135, colors: [['#5B53E8', 0], ['#7C76F0', 1]] })
-        Text('✓')
-          .fontSize(52)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-      }
-      Text('萌芽打卡')
-        .fontSize(28)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.th().textPrimary)
-        .margin({ top: 24 })
-      Text('每天一点点，坚持看得见')
-        .fontSize(15)
-        .fontColor(this.th().textSecondary)
-        .margin({ top: 10 })
-
-      Column({ space: 16 }) {
-        this.Feature('记录每天想坚持的小事')
-        this.Feature('打卡进度、连续天数一目了然')
-        this.Feature('数据只存本地，安全又私密')
-      }
-      .alignItems(HorizontalAlign.Start)
-      .margin({ top: 44 })
-
-      Blank().layoutWeight(1)
-      Button('开始使用')
-        .width('100%')
-        .height(52)
-        .fontSize(17)
-        .fontWeight(FontWeight.Medium)
-        .fontColor('#FFFFFF')
-        .backgroundColor(this.th().accent)
-        .borderRadius(16)
-        .onClick(() => this.finishWelcome())
-    }
-    .width('100%')
-    .height('100%')
-    .padding({ left: 36, right: 36, top: 60, bottom: 48 })
-    .backgroundColor(this.th().bg)
-  }
-
-  @Builder
-  Feature(text: string) {
-    Row() {
-      Stack({ alignContent: Alignment.Center }) {
-        Circle().width(24).height(24).fill(this.th().accentSoft)
-        Text('✓')
-          .fontSize(13)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.th().accent)
-      }
-      .margin({ right: 14 })
-      Text(text)
-        .fontSize(15)
-        .fontColor(this.th().textPrimary)
-        .layoutWeight(1)
-    }
-    .width('100%')
   }
 }
