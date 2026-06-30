@@ -76,22 +76,6 @@ export struct MineView {
     this.showImport = true;
   }
 
-  /** 一键把剪贴板内容填入输入框 */
-  async pasteFromClipboard(): Promise<void> {
-    try {
-      const board: pasteboard.SystemPasteboard = pasteboard.getSystemPasteboard();
-      const data: pasteboard.PasteData = await board.getData();
-      const text: string = data.getPrimaryText();
-      if (!text || text.length === 0) {
-        promptAction.showToast({ message: '剪贴板为空，可手动粘贴备份内容' });
-        return;
-      }
-      this.importText = text;
-    } catch (e) {
-      promptAction.showToast({ message: '读取剪贴板失败，可手动粘贴备份内容' });
-    }
-  }
-
   /** 用输入框中的备份内容覆盖导入 */
   async doImport(): Promise<void> {
     const text: string = this.importText.trim();
@@ -177,7 +161,7 @@ export struct MineView {
           .width('100%')
           .margin({ top: 8 })
 
-        TextArea({ text: this.importText, placeholder: '在此粘贴备份内容…' })
+        TextArea({ text: this.importText, placeholder: '长按此处粘贴备份内容…' })
           .width('100%')
           .height(150)
           .fontSize(13)
@@ -187,17 +171,6 @@ export struct MineView {
           .borderRadius(12)
           .margin({ top: 14 })
           .onChange((v: string) => this.importText = v)
-
-        Text('从剪贴板粘贴')
-          .fontSize(14)
-          .fontColor(this.th().accent)
-          .width('100%')
-          .textAlign(TextAlign.Center)
-          .padding({ top: 12, bottom: 12 })
-          .margin({ top: 12 })
-          .borderRadius(12)
-          .backgroundColor(this.th().accentSoft)
-          .onClick(() => this.pasteFromClipboard())
 
         Row({ space: 12 }) {
           Text('取消')
@@ -332,7 +305,7 @@ export struct MineView {
     if (this.themeMode === 'dark') {
       return '已锁定暗黑质感';
     }
-    return '跟随系统深浅切换';
+    return '跟随系统，重开应用后生效';
   }
 
   @Builder
@@ -485,7 +458,7 @@ export struct MineView {
   @Builder
   About() {
     Column() {
-      Text('习惯打卡 · v2.0')
+      Text('萌芽打卡 · v1.0.0')
         .fontSize(13)
         .fontColor(this.th().textTertiary)
       Text('坚持，是看得见的成长')

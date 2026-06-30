@@ -17,6 +17,7 @@
 
 # 签名私钥与证书（机密，勿入库）
 /signature/
+/signature.zip
 
 # 上架资料（本地保存）
 /release/

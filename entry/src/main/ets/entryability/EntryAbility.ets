@@ -2,6 +2,7 @@ import { AbilityConstant, ConfigurationConstant, UIAbility, Want, Configuration 
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { preferences } from '@kit.ArkData';
+import { applyWindowColorMode } from '../model/Theme';
 
 const DOMAIN = 0x0000;
 const STORE_NAME: string = 'habit_store';
@@ -32,17 +33,16 @@ export default class EntryAbility extends UIAbility {
   /**
    * 把窗口色彩模式钉死成 App 实际要渲染的主题，避免系统对硬编码颜色做自动反相，
    * 杜绝“深色模式下浅字浅底（对比度 1.11）”的上架检测问题。
+   * 注意：setColorMode 会触发系统回调 onConfigurationUpdate；applyWindowColorMode
+   * 内部做了幂等护栏（值未变则不再下发），避免“setColorMode→回调→再 setColorMode”的
+   * 自触发死循环——该死循环会让首帧渲染不出、应用卡在启动图（真机上“无法进入应用”）。
    */
   private async applyColorMode(): Promise<void> {
     const mode: string = await this.readThemeMode();
     const dark: boolean = mode === 'dark' || (mode === 'system' && this.systemIsDark());
-    try {
-      this.context.getApplicationContext().setColorMode(dark
-        ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
-        : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT);
-    } catch (err) {
-      hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
-    }
+    // 同步到 AppStorage，启动/前台恢复时驱动 @StorageProp('themeDark') 订阅组件刷新
+    AppStorage.setOrCreate('themeDark', dark);
+    applyWindowColorMode(this.context, dark);
   }
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -50,7 +50,11 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
 
-  /** 系统色彩模式变化时（仅 mode=system 生效）重新钉死窗口色彩模式 */
+  /**
+   * 系统配置变化时重算偏好。applyColorMode 是幂等的：若色彩模式未变则不会再次
+   * 下发 setColorMode，因此不会与本回调形成循环；仅当系统深浅色真正切换且
+   * 当前为“跟随系统”时，才会产生一次有效的 setColorMode。
+   */
   onConfigurationUpdate(newConfig: Configuration): void {
     this.applyColorMode();
   }

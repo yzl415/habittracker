@@ -129,10 +129,24 @@ export function resolveDark(mode: ThemeMode, sysDark: boolean): boolean {
 }
 
 /**
+ * 进程内记录最近一次已应用的色彩模式。
+ * 关键护栏：setColorMode 会触发系统下发 onConfigurationUpdate，若回调里再次
+ * 无条件 setColorMode，则在某些真机（HarmonyOS 6.0.x）上形成自触发死循环，
+ * 导致首帧永远渲染不出、应用卡在启动图（上架审核“无法进入应用”）。
+ * 因此仅在目标值与已应用值不同时才真正下发，值未变即视为 no-op，循环自然中断。
+ */
+let lastAppliedDark: boolean | null = null;
+
+/**
  * 把窗口色彩模式钉死成 App 实际渲染的主题，杜绝系统自动反相导致的“浅字浅底”。
  * dark=true → COLOR_MODE_DARK，dark=false → COLOR_MODE_LIGHT。
+ * 幂等：重复传入相同值不会再次调用 setColorMode，避免 onConfigurationUpdate 死循环。
  */
 export function applyWindowColorMode(context: common.UIAbilityContext, dark: boolean): void {
+  if (lastAppliedDark === dark) {
+    return;
+  }
+  lastAppliedDark = dark;
   try {
     const mode: ConfigurationConstant.ColorMode = dark
       ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK

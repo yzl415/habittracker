@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "storeFile": "/Users/joey/DevecostudioProjects/habittracker/signature/release.p12",
-          "storePassword": "00000019B2C277732518E78386F9FA35A3952495EE78AF6B981AA5D2EE62419F229A532BBC2ED5F16A",
+          "storeFile": "/Users/zl/DevEcoStudioProjects/HabitTracker/signature/release.p12",
+          "storePassword": "00000019129A1328405151068ADCC75B9291247C8E2F5C84FC7B41B24441A6A2FA316A002254552A7A",
           "keyAlias": "release",
-          "keyPassword": "000000196C9246F465F4084D3D13C2ED5B92C17EB3EA3EAB872CFB9FAFD840E65E030C2999B7D9CB26",
+          "keyPassword": "000000190367FD094B4EBD292670636E737393FB7B5B43122AF8757FF98863E9CD1F8551167BE24E5D",
           "signAlg": "SHA256withECDSA",
-          "profile": "/Users/joey/DevecostudioProjects/habittracker/signature/release.p7b",
-          "certpath": "/Users/joey/DevecostudioProjects/habittracker/signature/release.cer"
+          "profile": "/Users/zl/DevEcoStudioProjects/HabitTracker/signature/release.p7b",
+          "certpath": "/Users/zl/DevEcoStudioProjects/HabitTracker/signature/release.cer"
         }
       }
     ],
@@ -19,14 +19,15 @@
       {
         "name": "default",
         "signingConfig": "default",
-        "compatibleSdkVersion": "6.1.0(23)",
+        "compatibleSdkVersion": "6.0.0(20)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {
             "caseSensitiveCheck": true,
             "useNormalizedOHMUrl": true
           }
-        }
+        },
+        "targetSdkVersion": "6.1.0(23)"
       }
     ],
     "buildModeSet": [
